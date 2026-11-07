@@ -1,0 +1,13 @@
+{"ts": "2026-11-07T12:52:03Z", "host": "WS-LIT-03", "user": "jramos", "event": "file_open", "path": "/dms/matters/LIT-2291/Motion_Response_Draft_v7.docx"}
+{"ts": "2026-11-07T13:02:03Z", "host": "WS-LIT-03", "user": "jramos", "event": "file_save", "path": "/dms/matters/LIT-2291/Motion_Response_Draft_v7.docx"}
+{"ts": "2026-11-07T13:12:03Z", "host": "WS-CORP-02", "user": "akim", "event": "file_rename", "path": "/dms/matters/CORP-1180/Notes_0.docx", "new_path": "/dms/matters/CORP-1180/Notes_0_final.docx"}
+{"ts": "2026-11-07T13:17:03Z", "host": "WS-LIT-03", "user": "jramos", "event": "file_open", "path": "/dms/matters/CORP-1180/Merger_Agreement_v12.docx"}
+{"ts": "2026-11-07T13:27:03Z", "host": "WS-LIT-03", "user": "jramos", "event": "file_save", "path": "/dms/matters/CORP-1180/Merger_Agreement_v12.docx"}
+{"ts": "2026-11-07T13:33:43Z", "host": "WS-CORP-02", "user": "akim", "event": "file_rename", "path": "/dms/matters/CORP-1180/Notes_1.docx", "new_path": "/dms/matters/CORP-1180/Notes_1_final.docx"}
+{"ts": "2026-11-07T13:42:03Z", "host": "WS-LIT-03", "user": "jramos", "event": "file_open", "path": "/dms/matters/LIT-2291/Exhibit_A_Contract.pdf"}
+{"ts": "2026-11-07T13:52:03Z", "host": "WS-LIT-03", "user": "jramos", "event": "file_save", "path": "/dms/matters/LIT-2291/Exhibit_A_Contract.pdf"}
+{"ts": "2026-11-07T13:55:23Z", "host": "WS-CORP-02", "user": "akim", "event": "file_rename", "path": "/dms/matters/CORP-1180/Notes_2.docx", "new_path": "/dms/matters/CORP-1180/Notes_2_final.docx"}
+{"ts": "2026-11-07T14:02:03Z", "host": "WS-CORP-02", "user": "akim", "event": "network_outbound", "dest": "198.51.100.10:443", "bytes": 250000, "note": "Known e-filing portal"}
+{"ts": "2026-11-07T14:07:03Z", "host": "WS-LIT-03", "user": "jramos", "event": "file_open", "path": "/dms/matters/EMP-0457/Policy_Review_Memo.docx"}
+{"ts": "2026-11-07T14:17:03Z", "host": "WS-LIT-03", "user": "jramos", "event": "file_save", "path": "/dms/matters/EMP-0457/Policy_Review_Memo.docx"}
+{"ts": "2026-11-07T14:17:03Z", "host": "WS-CORP-02", "user": "akim", "event": "file_rename", "path": "/dms/matters/CORP-1180/Notes_3.docx", "new_path": "/dms/matters/CORP-1180/Notes_3_final.docx"}

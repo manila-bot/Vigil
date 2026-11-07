@@ -1,0 +1,40 @@
+{
+  "_note": "SIMULATED. All matters, clients and people are fictional and exist only for the Vigil demo.",
+  "matters": [
+    {
+      "matter_code": "LIT-2291",
+      "client_label": "Harlow Logistics (fictional)",
+      "title": "Harlow Logistics v. Brightline Freight \u2014 response to motion for summary judgment",
+      "practice_area": "Litigation",
+      "lead_name": "Dana Ortiz (fictional)",
+      "lead_role": "Litigation lead",
+      "deadline_local_time": "14:00",
+      "deadline_day_offset": 0,
+      "deadline_label": "court filing",
+      "path_prefix": "/dms/matters/LIT-2291/"
+    },
+    {
+      "matter_code": "CORP-1180",
+      "client_label": "Northgate Medical Group (fictional)",
+      "title": "Northgate / Cedar Clinics merger \u2014 closing documents",
+      "practice_area": "Corporate",
+      "lead_name": "Alex Kim (fictional)",
+      "lead_role": "Corporate lead",
+      "deadline_local_time": "17:00",
+      "deadline_day_offset": 1,
+      "deadline_label": "merger closing",
+      "path_prefix": "/dms/matters/CORP-1180/"
+    },
+    {
+      "matter_code": "EMP-0457",
+      "client_label": "Lone Star Builders (fictional)",
+      "title": "Employment policy review",
+      "practice_area": "Labor & Employment",
+      "lead_name": "Sam Patel (fictional)",
+      "lead_role": "Employment lead",
+      "deadline_local_time": null,
+      "deadline_label": null,
+      "path_prefix": "/dms/matters/EMP-0457/"
+    }
+  ]
+}

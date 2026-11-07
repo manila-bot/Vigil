@@ -1,0 +1,213 @@
+{
+  "urgent_deadlines": [
+    {
+      "matter_code": "LIT-2291",
+      "title": "Harlow Logistics v. Brightline Freight \u2014 response to motion for summary judgment",
+      "client_label": "Harlow Logistics (fictional)",
+      "deadline_at": "2026-11-07T20:00:00+00:00",
+      "deadline_label": "court filing",
+      "lead_name": "Dana Ortiz (fictional)",
+      "lead_role": "Litigation lead",
+      "incident_id": 1,
+      "incident_code": "VIG-0001",
+      "availability": [
+        "locked"
+      ],
+      "copying": [
+        "unknown"
+      ],
+      "deadline_local": "2:00 PM"
+    },
+    {
+      "matter_code": "CORP-1180",
+      "title": "Northgate / Cedar Clinics merger \u2014 closing documents",
+      "client_label": "Northgate Medical Group (fictional)",
+      "deadline_at": "2026-11-08T23:00:00+00:00",
+      "deadline_label": "merger closing",
+      "lead_name": "Alex Kim (fictional)",
+      "lead_role": "Corporate lead",
+      "incident_id": 1,
+      "incident_code": "VIG-0001",
+      "availability": [
+        "locked"
+      ],
+      "copying": [
+        "unknown"
+      ],
+      "deadline_local": "Tomorrow 5:00 PM"
+    }
+  ],
+  "incidents": [
+    {
+      "id": 1,
+      "code": "VIG-0001",
+      "title": "[SIMULATED] Ransomware-like file encryption on WS-ADM-11",
+      "status": "open",
+      "severity": "critical",
+      "category": "ransomware",
+      "summary": "Simulated detection: 39 document files renamed to .vgl0ck within one minute on WS-ADM-11 (account svc_printscan). Affected matters: CORP-1180, LIT-2291. Whether data was copied out is not verified.",
+      "detected_at": "2026-11-07T14:52:03Z",
+      "source": "simulated",
+      "created_by": 2,
+      "created_at": "2026-11-07T23:26:39+00:00",
+      "updated_at": "2026-11-07T23:26:39+00:00"
+    }
+  ],
+  "affected_systems": [
+    {
+      "system": "Document management (DMS)",
+      "availability": "locked",
+      "incident_id": 1
+    },
+    {
+      "system": "Email",
+      "availability": "degraded",
+      "incident_id": 1
+    }
+  ],
+  "open_tasks": [
+    {
+      "id": 1,
+      "incident_id": 1,
+      "title": "Locate a clean backup copy of the LIT-2291 filing and confirm it opens",
+      "status": "open",
+      "priority": "critical",
+      "due_at": "2026-11-07T17:00:00+00:00",
+      "owner_label": "Litigation lead",
+      "owner_name": "Demo Responder"
+    },
+    {
+      "id": 2,
+      "incident_id": 1,
+      "title": "Prepare an extension request for the LIT-2291 court filing as a fallback",
+      "status": "open",
+      "priority": "high",
+      "due_at": "2026-11-07T18:00:00+00:00",
+      "owner_label": "Litigation lead",
+      "owner_name": "Demo Responder"
+    },
+    {
+      "id": 3,
+      "incident_id": 1,
+      "title": "Isolate the affected workstation from the network and preserve its logs",
+      "status": "open",
+      "priority": "critical",
+      "due_at": "2026-11-07T23:56:39+00:00",
+      "owner_label": "IT lead",
+      "owner_name": null
+    },
+    {
+      "id": 4,
+      "incident_id": 1,
+      "title": "Determine whether data was copied out in the outbound transfer",
+      "status": "open",
+      "priority": "high",
+      "due_at": "2026-11-08T01:26:39+00:00",
+      "owner_label": "IT lead",
+      "owner_name": null
+    }
+  ],
+  "unverified_exposure_count": 3,
+  "recent_activity": [
+    {
+      "id": 11,
+      "incident_id": 1,
+      "incident_code": "VIG-0001",
+      "at": "2026-11-07T23:26:39+00:00",
+      "kind": "message",
+      "summary": "Demo Responder: Backup copy located.",
+      "actor_name": "Demo Responder"
+    },
+    {
+      "id": 10,
+      "incident_id": 1,
+      "incident_code": "VIG-0001",
+      "at": "2026-11-07T23:26:39+00:00",
+      "kind": "alert_sent",
+      "summary": "Alert (SIMULATED) to Demo Responder via imessage: provider accepted",
+      "actor_name": "Demo Responder"
+    },
+    {
+      "id": 9,
+      "incident_id": 1,
+      "incident_code": "VIG-0001",
+      "at": "2026-11-07T23:26:39+00:00",
+      "kind": "triage_approved",
+      "summary": "Demo Responder approved the AI draft \u2014 4 tasks created; external alert enabled",
+      "actor_name": "Demo Responder"
+    },
+    {
+      "id": 8,
+      "incident_id": 1,
+      "incident_code": "VIG-0001",
+      "at": "2026-11-07T23:26:39+00:00",
+      "kind": "triage_drafted",
+      "summary": "AI triage (MOCK) proposed 4 tasks after 3 tool calls \u2014 awaiting approval",
+      "actor_name": "Demo Responder"
+    },
+    {
+      "id": 7,
+      "incident_id": 1,
+      "incident_code": "VIG-0001",
+      "at": "2026-11-07T23:26:39+00:00",
+      "kind": "scope_added",
+      "summary": "Initial scope recorded from detection: matter files locked, email degraded, data copying unverified",
+      "actor_name": null
+    },
+    {
+      "id": 6,
+      "incident_id": 1,
+      "incident_code": "VIG-0001",
+      "at": "2026-11-07T23:26:39+00:00",
+      "kind": "evidence_added",
+      "summary": "Evidence EV-5 recorded: mail-transport stopped on MAIL-GW-01",
+      "actor_name": null
+    },
+    {
+      "id": 5,
+      "incident_id": 1,
+      "incident_code": "VIG-0001",
+      "at": "2026-11-07T23:26:39+00:00",
+      "kind": "evidence_added",
+      "summary": "Evidence EV-4 recorded: Possible ransom note created: README_RESTORE_FILES.txt",
+      "actor_name": null
+    },
+    {
+      "id": 4,
+      "incident_id": 1,
+      "incident_code": "VIG-0001",
+      "at": "2026-11-07T23:26:39+00:00",
+      "kind": "evidence_added",
+      "summary": "Evidence EV-3 recorded: Possible ransom note created: README_RESTORE_FILES.txt",
+      "actor_name": null
+    },
+    {
+      "id": 3,
+      "incident_id": 1,
+      "incident_code": "VIG-0001",
+      "at": "2026-11-07T23:26:39+00:00",
+      "kind": "evidence_added",
+      "summary": "Evidence EV-2 recorded: 39 files renamed to .vgl0ck on WS-ADM-11 in 50 seconds",
+      "actor_name": null
+    },
+    {
+      "id": 2,
+      "incident_id": 1,
+      "incident_code": "VIG-0001",
+      "at": "2026-11-07T23:26:39+00:00",
+      "kind": "evidence_added",
+      "summary": "Evidence EV-1 recorded: 40.0 MB sent to 203.0.113.45:443 \u2014 contents unknown, copying not verified",
+      "actor_name": null
+    },
+    {
+      "id": 1,
+      "incident_id": 1,
+      "incident_code": "VIG-0001",
+      "at": "2026-11-07T23:26:39+00:00",
+      "kind": "detection",
+      "summary": "Simulated detector flagged 39 file renames on WS-ADM-11",
+      "actor_name": null
+    }
+  ],
+  "server_time": "2026-11-07T23:26:39+00:00"
+}
