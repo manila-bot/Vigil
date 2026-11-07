@@ -1,0 +1,9 @@
+{
+  "providers": {
+    "nemotron": "disabled (mock triage)",
+    "photon": "disabled (simulated alerts)"
+  },
+  "isolation": "Vigil uses its own accounts and database and does not depend on firm email, SSO or file systems. External providers are optional and off by default.",
+  "data": "All incidents, matters and logs in this demo are synthetic.",
+  "server_time": "2026-11-07T23:26:39+00:00"
+}

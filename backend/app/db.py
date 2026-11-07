@@ -163,7 +163,8 @@ def now() -> str:
 
 def connect() -> sqlite3.Connection:
     config.DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(config.DB_PATH, timeout=10)
+    # One connection per request; FastAPI may open it and use it on different worker threads.
+    conn = sqlite3.connect(config.DB_PATH, timeout=10, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     conn.execute("PRAGMA busy_timeout = 5000")
