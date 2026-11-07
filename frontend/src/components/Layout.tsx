@@ -1,14 +1,20 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { LayoutDashboard, LogOut, ShieldCheck, Users } from "lucide-react";
-import { post, session, USE_MOCKS } from "../api/client";
+import { LogOut, ShieldCheck } from "lucide-react";
+import { useEffect, useState } from "react";
+import { get, post, session, USE_MOCKS } from "../api/client";
 
 export default function Layout() {
   const user = session.user;
   const nav = useNavigate();
-  const link = ({ isActive }: { isActive: boolean }) =>
-    `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium ${
-      isActive ? "bg-white/10 text-white" : "text-slate-300 hover:bg-white/5 hover:text-white"
-    }`;
+  const [status, setStatus] = useState<any>(null);
+  useEffect(() => {
+    get("/system/status").then(setStatus).catch(() => {});
+  }, []);
+
+  const pill = ({ isActive }: { isActive: boolean }) => (isActive ? "pill-active" : "pill");
+  const initials = (user?.name ?? "?").split(" ").map((w: string) => w[0]).slice(0, 2).join("");
+  const aiLive = status?.providers?.nemotron === "live";
+  const alertsLive = status?.providers?.photon === "live";
 
   async function signOut() {
     await post("/auth/logout").catch(() => {});
@@ -17,45 +23,38 @@ export default function Layout() {
   }
 
   return (
-    <div className="flex min-h-screen">
-      <aside className="flex w-60 shrink-0 flex-col bg-navy-900 px-3 py-5 text-white">
-        <div className="mb-8 flex items-center gap-2 px-3">
-          <ShieldCheck className="h-7 w-7 text-sky-300" />
-          <div>
-            <div className="text-lg font-bold leading-none">Vigil</div>
-            <div className="text-[11px] text-slate-400">Incident command center</div>
-          </div>
+    <div className="mx-auto max-w-[1400px] px-6 py-5">
+      <header className="mb-8 flex items-center gap-4">
+        <div className="flex items-center gap-2">
+          <ShieldCheck className="h-6 w-6 text-accent" />
+          <span className="text-lg font-semibold tracking-tight">Vigil</span>
         </div>
-        <nav className="flex flex-col gap-1">
-          <NavLink to="/" end className={link}>
-            <LayoutDashboard className="h-4 w-4" /> Command Center
-          </NavLink>
-          {user?.role === "admin" && (
-            <NavLink to="/access" className={link}>
-              <Users className="h-4 w-4" /> Access
-            </NavLink>
-          )}
+        <nav className="mx-auto flex items-center gap-1 rounded-full border border-line bg-panel p-1">
+          <NavLink to="/" end className={pill}>Command Center</NavLink>
+          {user?.role === "admin" && <NavLink to="/access" className={pill}>Access</NavLink>}
         </nav>
-        <div className="mt-auto space-y-3 px-3">
-          {USE_MOCKS && (
-            <div className="rounded-md bg-purple-500/20 px-2 py-1.5 text-[11px] text-purple-100">
-              Sample data mode. Nothing is saved.
-            </div>
-          )}
-          <div className="text-sm">
-            <div className="font-semibold">{user?.name}</div>
-            <div className="text-xs text-slate-400">
-              {user?.team_role ?? user?.role} · {user?.role}
+        <div className="flex items-center gap-3">
+          {/* Always say what's real and what's simulated */}
+          <div className="hidden items-center gap-2 rounded-full border border-line bg-panel px-3 py-1.5 text-xs text-muted lg:flex"
+            title={status?.isolation}>
+            <span className={`h-2 w-2 rounded-full ${USE_MOCKS ? "bg-violet-400" : "bg-lime"}`} />
+            {USE_MOCKS ? "Sample data" : "Isolated server"}
+            <span className="text-faint">·</span> AI {aiLive ? "live" : "mock"}
+            <span className="text-faint">·</span> Alerts {alertsLive ? "live" : "simulated"}
+          </div>
+          <div className="flex items-center gap-2.5 rounded-full border border-line bg-panel py-1 pl-1 pr-3">
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-accent text-xs font-bold text-black">{initials}</span>
+            <div className="leading-tight">
+              <div className="text-sm font-medium">{user?.name}</div>
+              <div className="text-[11px] text-faint">{user?.team_role ?? user?.role}</div>
             </div>
           </div>
-          <button onClick={signOut} className="flex items-center gap-2 text-xs text-slate-400 hover:text-white">
-            <LogOut className="h-3.5 w-3.5" /> Sign out
+          <button onClick={signOut} className="icon-btn" title="Sign out" aria-label="Sign out">
+            <LogOut className="h-4 w-4" />
           </button>
         </div>
-      </aside>
-      <main className="min-w-0 flex-1 px-8 py-6">
-        <Outlet />
-      </main>
+      </header>
+      <Outlet />
     </div>
   );
 }

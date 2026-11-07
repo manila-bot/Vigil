@@ -1,16 +1,35 @@
 import { FormEvent, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Activity, Clock, FilePlus2, ListChecks, Server, ShieldAlert, Zap } from "lucide-react";
+import { AlertTriangle, ArrowUpRight, Clock, Database, FilePlus2, ListChecks, Server, ShieldQuestion, UserRound, Zap } from "lucide-react";
 import { get, post } from "../api/client";
-import { Badge, ErrorBanner, fmtTime, LABELS, Spinner, StaleBanner, usePoll } from "../components/ui";
+import { Badge, ErrorBanner, fmtTime, LABELS, responseSteps, Spinner, StaleBanner, StatTile, usePoll } from "../components/ui";
+
+export function timeLeft(iso?: string | null) {
+  if (!iso) return null;
+  const mins = Math.round((new Date(iso).getTime() - Date.now()) / 60000);
+  if (mins <= 0) return "Deadline passed";
+  const h = Math.floor(mins / 60), m = mins % 60;
+  return h >= 24 ? `${Math.floor(h / 24)}d ${h % 24}h left` : `${h}h ${m}m left`;
+}
+
+const FILTERS: Record<string, (k: string) => boolean> = {
+  All: () => true,
+  Detection: (k) => ["detection", "evidence_added", "scope_added", "scope_updated", "incident_created"].includes(k),
+  "AI & tasks": (k) => k.startsWith("triage") || k.startsWith("task"),
+  Alerts: (k) => k.startsWith("alert"),
+  Chat: (k) => k === "message",
+};
 
 export default function CommandCenter() {
   const nav = useNavigate();
   const { data, error, stale } = usePoll(() => get("/dashboard"));
+  const active = data?.incidents?.[0];
+  const { data: detail } = usePoll(() => (active ? get(`/incidents/${active.id}`) : Promise.resolve(null)), 2000, [active?.id]);
   const [simMsg, setSimMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [filter, setFilter] = useState("All");
 
   async function simulate(fixture: string) {
     setBusy(true);
@@ -29,127 +48,212 @@ export default function CommandCenter() {
 
   if (!data) return error ? <ErrorBanner message={error} /> : <Spinner />;
   const urgent = data.urgent_deadlines?.[0];
+  const systems = Array.from(new Set(data.affected_systems.map((s: any) => s.system))) as string[];
+  const steps = detail ? responseSteps(detail) : [];
+  const nextStep = steps.find((s) => !s.done);
+  const activity = data.recent_activity.filter((e: any) => FILTERS[filter](e.kind));
+  const today = new Date().toLocaleDateString([], { month: "long", day: "numeric", year: "numeric" });
 
   return (
-    <div className="mx-auto max-w-6xl">
-      <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-navy-900">Command Center</h1>
-          <p className="text-sm text-slate-500">Updated {fmtTime(data.server_time)} · refreshes every 2 seconds</p>
+    <div>
+      {/* Title + KPI tiles */}
+      <section className="mb-6 grid grid-cols-1 items-end gap-5 xl:grid-cols-[1fr_auto]">
+        <h1 className="text-5xl font-semibold leading-[1.05] tracking-tight">
+          Incident<br />Command Center
+        </h1>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <StatTile icon={<Server className="h-6 w-6" />} label="Systems affected" value={systems.length}
+            note={systems.length ? systems.join(", ") : "All systems normal"} tone={systems.length ? "critical" : "ok"} />
+          <StatTile icon={<ListChecks className="h-6 w-6" />} label="Open tasks" value={data.open_tasks.length}
+            note={data.open_tasks.length ? "Assigned to responders" : "Nothing waiting"} />
+          <StatTile icon={<ShieldQuestion className="h-6 w-6" />} label="Data copying unverified" value={data.unverified_exposure_count}
+            note={data.unverified_exposure_count ? "Still need to confirm" : "None outstanding"} tone={data.unverified_exposure_count ? "warning" : "ok"} />
         </div>
-        <div className="flex gap-2">
+      </section>
+
+      {/* Action bar */}
+      <section className="card mb-6 flex flex-wrap items-center gap-4 px-4 py-3">
+        <div className="flex items-center gap-3">
+          <span className="icon-btn"><Database className="h-4 w-4" /></span>
+          <div className="leading-tight">
+            <div className="text-sm font-medium">Incident records</div>
+            <div className="text-xs text-faint">Today · {today} · live, updates every 2 s</div>
+          </div>
+        </div>
+        <div className="ml-auto flex flex-wrap items-center gap-3">
+          {data.urgent_deadlines.length > 0 && (
+            <span className="flex items-center gap-1.5 text-sm text-red-300">
+              <AlertTriangle className="h-4 w-4" /> {data.urgent_deadlines.length} legal deadline{data.urgent_deadlines.length > 1 ? "s" : ""} at risk
+            </span>
+          )}
           <button className="btn-ghost" onClick={() => simulate("ransomware_burst")} disabled={busy}>
-            <Zap className="h-4 w-4 text-purple-600" /> Simulate attack <span className="text-xs text-purple-700">(demo)</span>
+            <Zap className="h-4 w-4 text-violet-300" /> Simulate attack
           </button>
           <button className="btn-primary" onClick={() => setShowCreate(true)}>
             <FilePlus2 className="h-4 w-4" /> Create incident
           </button>
         </div>
-      </header>
+      </section>
+
       <StaleBanner stale={stale} error={error} />
       <ErrorBanner message={actionError} />
-      {simMsg && (
-        <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-900">{simMsg}</div>
-      )}
+      {simMsg && <div className="mb-4 rounded-xl border border-lime/30 bg-lime-soft px-4 py-2 text-sm text-lime">{simMsg}</div>}
       {showCreate && <CreateIncident onClose={() => setShowCreate(false)} onCreated={(id) => nav(`/incidents/${id}`)} />}
 
-      {/* The urgent filing card leads */}
-      {urgent ? (
-        <Link to={`/incidents/${urgent.incident_id}`}
-          className="mb-6 block rounded-2xl border-2 border-red-300 bg-red-50 p-6 transition hover:border-red-400">
-          <div className="flex items-start gap-4">
-            <Clock className="mt-1 h-8 w-8 shrink-0 text-red-600" />
-            <div className="flex-1">
-              <div className="text-xs font-bold uppercase tracking-wider text-red-700">Most urgent deadline at risk</div>
-              <div className="mt-1 text-3xl font-bold text-red-900">
-                {urgent.deadline_local} {urgent.deadline_label}
-              </div>
-              <div className="mt-1 text-sm text-red-900">
-                {urgent.matter_code} · {urgent.title}
-              </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {urgent.availability.map((a: string) => <Badge key={a} kind="availability" value={a} />)}
-                {urgent.copying.map((c: string) => <Badge key={c} kind="copying" value={c} />)}
-                <span className="text-xs text-red-800">Lead: {urgent.lead_name} ({urgent.lead_role}) · {urgent.incident_code}</span>
-              </div>
-            </div>
-            <span className="btn-danger self-center">Open incident →</span>
-          </div>
-        </Link>
+      {!active ? (
+        <AllClear onSimulate={() => simulate("ransomware_burst")} onNormal={() => simulate("normal_activity")} busy={busy} />
       ) : (
-        <div className="card mb-6 flex items-center gap-3 p-6 text-slate-600">
-          <ShieldAlert className="h-6 w-6 text-emerald-600" /> No deadlines at risk right now.
-        </div>
+        <section className="mb-6 grid grid-cols-1 gap-5 lg:grid-cols-3">
+          {/* 1. What's at risk */}
+          <div className="card flex flex-col p-6">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="card-title">What's at risk</h2>
+              <Link to={`/incidents/${active.id}`} className="icon-btn h-8 w-8" aria-label="Open incident"><ArrowUpRight className="h-4 w-4" /></Link>
+            </div>
+            {urgent ? (
+              <>
+                <div className="text-xs uppercase tracking-wider text-faint">Next legal deadline</div>
+                <div className="mt-1 text-4xl font-semibold tracking-tight text-accent">{urgent.deadline_local}</div>
+                <div className="text-lg">{urgent.deadline_label}</div>
+                <div className="mt-1 flex items-center gap-1.5 text-sm text-red-300">
+                  <Clock className="h-4 w-4" /> {timeLeft(urgent.deadline_at)}
+                </div>
+                <div className="mt-4 text-sm text-muted">{urgent.matter_code} · {urgent.title}</div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {urgent.availability.map((a: string) => <Badge key={a} kind="availability" value={a} />)}
+                  {urgent.copying.map((c: string) => <Badge key={c} kind="copying" value={c} />)}
+                </div>
+                <div className="mt-auto flex items-center gap-3 rounded-2xl bg-panel2 p-3 pt-3">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-accent-soft text-accent"><UserRound className="h-5 w-5" /></span>
+                  <div className="leading-tight">
+                    <div className="text-[11px] text-faint">Matter lead</div>
+                    <div className="text-sm font-medium">{urgent.lead_name}</div>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <p className="text-sm text-muted">No legal deadlines are affected by open incidents.</p>
+            )}
+          </div>
+
+          {/* 2. Where the response stands */}
+          <div className="card p-6">
+            <div className="mb-1 flex items-center justify-between">
+              <h2 className="card-title">Response progress</h2>
+              <span className="rounded-full bg-lime-soft px-2.5 py-0.5 text-xs font-medium text-lime">{LABELS.status[active.status]}</span>
+            </div>
+            <div className="mb-4 text-xs text-faint">{active.code}</div>
+            <ol className="relative ml-1.5 border-l border-dashed border-line">
+              {steps.map((s, i) => {
+                const isNext = s === nextStep;
+                return (
+                  <li key={s.key} className="mb-3 ml-4 last:mb-0">
+                    <span className={`absolute -left-[5px] mt-1.5 h-2.5 w-2.5 rounded-full ${s.done ? "bg-lime" : isNext ? "bg-accent ring-4 ring-accent-soft" : "bg-line"}`} />
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className={`text-sm ${s.done ? "text-muted" : isNext ? "font-semibold text-ink" : "text-faint"}`}>
+                        {i + 1}. {s.title}
+                      </span>
+                      <span className={`text-[11px] ${s.done ? "text-lime" : isNext ? "text-accent" : "text-faint"}`}>
+                        {s.done ? "Done" : isNext ? "Next" : ""}
+                      </span>
+                    </div>
+                    {isNext && <div className="mt-0.5 text-xs text-muted">{s.hint}</div>}
+                  </li>
+                );
+              })}
+            </ol>
+            <Link to={`/incidents/${active.id}`} className="btn-primary mt-5 w-full">
+              {nextStep ? `Continue: ${nextStep.title}` : "Open incident"}
+            </Link>
+          </div>
+
+          {/* 3. Systems + tasks */}
+          <div className="card p-6">
+            <h2 className="card-title mb-4">Affected systems</h2>
+            <ul className="mb-6 space-y-2">
+              {data.affected_systems.map((s: any, i: number) => (
+                <li key={i} className="flex items-center justify-between rounded-2xl bg-panel2 px-4 py-3 text-sm">
+                  {s.system} <Badge kind="availability" value={s.availability} />
+                </li>
+              ))}
+            </ul>
+            <h2 className="card-title mb-3">Open tasks</h2>
+            <ul className="space-y-2">
+              {data.open_tasks.length === 0 && <li className="text-sm text-faint">No tasks yet. Approve an AI plan or add one.</li>}
+              {data.open_tasks.slice(0, 4).map((t: any) => (
+                <li key={t.id} className="text-sm">
+                  <div className="truncate">{t.title}</div>
+                  <div className="text-xs text-faint">{t.owner_name ?? t.owner_label ?? "Unassigned"} · due {fmtTime(t.due_at)}</div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
       )}
 
-      <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
-        <Stat icon={<Server className="h-5 w-5" />} label="Affected systems" value={new Set(data.affected_systems.map((s: any) => s.system)).size} />
-        <Stat icon={<ListChecks className="h-5 w-5" />} label="Open tasks" value={data.open_tasks.length} />
-        <Stat icon={<ShieldAlert className="h-5 w-5" />} label="Unverified data exposure" value={data.unverified_exposure_count}
-          hint="Scope items where copying is unknown or suspected" />
-      </div>
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
-        <section className="card lg:col-span-3">
-          <h2 className="border-b border-slate-100 px-5 py-3 font-semibold">Active incidents</h2>
-          {data.incidents.length === 0 && <p className="p-5 text-sm text-slate-500">No open incidents.</p>}
-          <ul className="divide-y divide-slate-100">
-            {data.incidents.map((i: any) => (
-              <li key={i.id}>
-                <Link to={`/incidents/${i.id}`} className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50">
-                  <span className="font-mono text-xs text-slate-500">{i.code}</span>
-                  <span className="flex-1 truncate text-sm font-medium">{i.title}</span>
-                  <Badge kind="severity" value={i.severity} />
-                  <Badge kind="status" value={i.status} />
-                </Link>
-              </li>
+      {/* Recent activity table */}
+      <section>
+        <div className="mb-3 flex flex-wrap items-center gap-3">
+          <h2 className="text-base font-semibold">Recent activity</h2>
+          <div className="flex gap-1">
+            {Object.keys(FILTERS).map((f) => (
+              <button key={f} onClick={() => setFilter(f)} className={filter === f ? "pill-active py-1 text-xs" : "pill py-1 text-xs"}>{f}</button>
             ))}
-          </ul>
-          <h2 className="border-y border-slate-100 px-5 py-3 font-semibold">Open tasks</h2>
-          <ul className="divide-y divide-slate-100">
-            {data.open_tasks.length === 0 && <li className="p-5 text-sm text-slate-500">No open tasks.</li>}
-            {data.open_tasks.map((t: any) => (
-              <li key={t.id} className="flex items-center gap-3 px-5 py-2.5 text-sm">
-                <Badge kind="severity" value={t.priority} />
-                <Link to={`/incidents/${t.incident_id}`} className="flex-1 truncate hover:underline">{t.title}</Link>
-                <span className="text-xs text-slate-500">{t.owner_name ?? t.owner_label ?? "Unassigned"} · due {fmtTime(t.due_at)}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-
-        <section className="card lg:col-span-2">
-          <h2 className="flex items-center gap-2 border-b border-slate-100 px-5 py-3 font-semibold">
-            <Activity className="h-4 w-4" /> Recent activity
-          </h2>
-          <ul className="max-h-[480px] divide-y divide-slate-100 overflow-auto">
-            {data.recent_activity.map((e: any) => (
-              <li key={e.id} className="px-5 py-2.5 text-sm">
-                <div className="text-xs text-slate-500">
-                  {fmtTime(e.at)} · {e.incident_code} · {e.actor_name ?? "System"}
-                </div>
-                <div>{e.summary}</div>
-              </li>
-            ))}
-          </ul>
-        </section>
-      </div>
-      <button className="mt-6 text-xs text-slate-500 underline" onClick={() => simulate("normal_activity")} disabled={busy}>
-        Demo: scan normal activity logs (should raise no alert)
-      </button>
+          </div>
+          <button className="ml-auto text-xs text-faint underline hover:text-muted" onClick={() => simulate("normal_activity")} disabled={busy}>
+            Demo: scan normal logs (should raise no alert)
+          </button>
+        </div>
+        <div className="card overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-panel2 text-left text-xs text-faint">
+              <tr><th className="px-5 py-3 font-medium">Time</th><th className="px-5 py-3 font-medium">Incident</th>
+                <th className="px-5 py-3 font-medium">What happened</th><th className="px-5 py-3 font-medium">By</th></tr>
+            </thead>
+            <tbody className="divide-y divide-line">
+              {activity.length === 0 && <tr><td colSpan={4} className="px-5 py-6 text-center text-faint">Nothing here yet.</td></tr>}
+              {activity.map((e: any) => (
+                <tr key={e.id} className="hover:bg-panel2/60">
+                  <td className="whitespace-nowrap px-5 py-3 text-muted">{fmtTime(e.at)}</td>
+                  <td className="px-5 py-3"><Link to={`/incidents/${e.incident_id}`} className="font-mono text-xs text-accent hover:underline">{e.incident_code}</Link></td>
+                  <td className="px-5 py-3">{e.summary}</td>
+                  <td className="whitespace-nowrap px-5 py-3 text-muted">{e.actor_name ?? "System"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
   );
 }
 
-function Stat({ icon, label, value, hint }: { icon: React.ReactNode; label: string; value: number; hint?: string }) {
+function AllClear({ onSimulate, onNormal, busy }: { onSimulate: () => void; onNormal: () => void; busy: boolean }) {
   return (
-    <div className="card flex items-center gap-4 p-5" title={hint}>
-      <div className="rounded-lg bg-navy-700/10 p-2.5 text-navy-700">{icon}</div>
+    <section className="card mb-6 grid grid-cols-1 gap-6 p-8 md:grid-cols-[1.2fr_1fr]">
       <div>
-        <div className="text-2xl font-bold">{value}</div>
-        <div className="text-sm text-slate-500">{label}</div>
+        <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-lime-soft px-3 py-1 text-xs font-medium text-lime">● All clear</div>
+        <h2 className="text-2xl font-semibold">No open incidents</h2>
+        <p className="mt-2 max-w-lg text-sm leading-relaxed text-muted">
+          Vigil is the firm's backup command center for cyber attacks. It runs on its own server with its own logins,
+          so it keeps working when email and file systems don't. When something happens, it shows what work is at risk,
+          what happened to the data, and who's doing what.
+        </p>
+        <div className="mt-5 flex flex-wrap gap-3">
+          <button className="btn-primary" onClick={onSimulate} disabled={busy}><Zap className="h-4 w-4" /> Simulate a ransomware attack</button>
+          <button className="btn-ghost" onClick={onNormal} disabled={busy}>Scan normal logs</button>
+        </div>
       </div>
-    </div>
+      <ol className="space-y-3 text-sm">
+        {["Detect: logs show files being locked", "Assess: see which matters and deadlines are hit",
+          "Plan: AI drafts tasks from the evidence", "Approve: a person signs off; nothing runs before that",
+          "Alert & coordinate: phone alert, chat, timeline"].map((t, i) => (
+          <li key={t} className="flex gap-3 rounded-2xl bg-panel2 px-4 py-3">
+            <span className="font-semibold text-accent">{i + 1}</span><span className="text-muted">{t}</span>
+          </li>
+        ))}
+      </ol>
+    </section>
   );
 }
 
@@ -169,25 +273,25 @@ function CreateIncident({ onClose, onCreated }: { onClose: () => void; onCreated
     }
   }
   return (
-    <form onSubmit={submit} className="card mb-6 space-y-3 p-5">
-      <h2 className="font-semibold">Create incident</h2>
-      <ErrorBanner message={error} />
+    <form onSubmit={submit} className="card mb-6 grid grid-cols-1 gap-4 p-6 md:grid-cols-[2fr_1fr]">
+      <h2 className="card-title col-span-full">Create incident</h2>
+      <div className="col-span-full"><ErrorBanner message={error} /></div>
       <div>
         <label className="label">What happened? (short title)</label>
         <input className="input" required autoFocus value={title} onChange={(e) => setTitle(e.target.value)}
           placeholder="e.g. Staff can't open files in the document system" />
       </div>
       <div>
-        <label className="label">Severity</label>
+        <label className="label">How serious?</label>
         <select className="input" value={severity} onChange={(e) => setSeverity(e.target.value)}>
           {Object.entries(LABELS.severity).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
         </select>
       </div>
-      <div>
+      <div className="col-span-full">
         <label className="label">Details (optional)</label>
         <textarea className="input" rows={3} value={summary} onChange={(e) => setSummary(e.target.value)} />
       </div>
-      <div className="flex gap-2">
+      <div className="col-span-full flex gap-2">
         <button className="btn-primary">Create incident</button>
         <button type="button" className="btn-ghost" onClick={onClose}>Cancel</button>
       </div>

@@ -78,7 +78,7 @@ def test_full_demo_flow(client):
 
     d = client.get(f"/api/incidents/{iid}", headers=r).json()
     labels = [h["label"] for h in d["headline"]]
-    assert "2:00 PM court filing at risk" in labels
+    assert any(l.endswith("court filing at risk") for l in labels)
     assert "Files locked" in labels and "Data copying unverified" in labels
     assert {s["availability"] for s in d["scope"]} == {"locked", "degraded"}
     assert all(e["is_simulated"] for e in d["evidence"])
@@ -100,8 +100,9 @@ def test_full_demo_flow(client):
     d = client.post(f"/api/incidents/{iid}/approve", json={"triage_id": t["id"]}, headers=r).json()
     assert d["triage"]["status"] == "approved" and d["triage"]["decided_by"] == "Demo Responder"
     assert len(d["tasks"]) == len(t["draft"]["tasks"]) and all(x["source"] == "ai" for x in d["tasks"])
-    assert d["tasks"][0]["approved_by_name"] == "Demo Responder"
-    assert d["tasks"][0]["owner_name"] == "Demo Responder"  # matched 'Litigation lead'
+    backup = next(x for x in d["tasks"] if "backup" in x["title"].lower())
+    assert backup["approved_by_name"] == "Demo Responder"
+    assert backup["owner_name"] == "Demo Responder"  # matched 'Litigation lead'
     assert client.post(f"/api/incidents/{iid}/approve", json={"triage_id": t["id"]}, headers=r).status_code == 409
 
     # Recipient must consent first

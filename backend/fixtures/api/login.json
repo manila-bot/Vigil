@@ -1,6 +1,6 @@
 {
   "token": "<opaque-session-token>",
-  "expires_at": "2026-11-08T11:26:39+00:00",
+  "expires_at": "2026-11-08T11:54:05+00:00",
   "user": {
     "id": 2,
     "email": "responder@vigil.local",

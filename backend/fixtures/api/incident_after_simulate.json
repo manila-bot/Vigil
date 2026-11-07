@@ -10,13 +10,13 @@
     "detected_at": "2026-11-07T14:52:03Z",
     "source": "simulated",
     "created_by": 2,
-    "created_at": "2026-11-07T23:26:39+00:00",
-    "updated_at": "2026-11-07T23:26:39+00:00",
+    "created_at": "2026-11-07T23:54:05+00:00",
+    "updated_at": "2026-11-07T23:54:05+00:00",
     "created_by_name": "Demo Responder"
   },
   "headline": [
     {
-      "label": "2:00 PM court filing at risk",
+      "label": "10:00 PM court filing at risk",
       "tone": "critical",
       "kind": "deadline",
       "matter_code": "LIT-2291"
@@ -47,7 +47,7 @@
       "practice_area": "Litigation",
       "lead_name": "Dana Ortiz (fictional)",
       "lead_role": "Litigation lead",
-      "deadline_at": "2026-11-07T20:00:00+00:00",
+      "deadline_at": "2026-11-08T04:00:00+00:00",
       "deadline_label": "court filing",
       "path_prefix": "/dms/matters/LIT-2291/",
       "is_simulated": true,
@@ -58,7 +58,7 @@
         "unknown"
       ],
       "at_risk": true,
-      "deadline_local": "2:00 PM"
+      "deadline_local": "10:00 PM"
     },
     {
       "id": 2,
@@ -94,7 +94,7 @@
       "certainty": "observed",
       "notes": "Files renamed with .vgl0ck extension; cannot be opened. Copying not verified.",
       "updated_by": null,
-      "updated_at": "2026-11-07T23:26:39+00:00",
+      "updated_at": "2026-11-07T23:54:05+00:00",
       "matter_code": "CORP-1180",
       "updated_by_name": null
     },
@@ -109,7 +109,7 @@
       "certainty": "observed",
       "notes": "Files renamed with .vgl0ck extension; cannot be opened. Copying not verified.",
       "updated_by": null,
-      "updated_at": "2026-11-07T23:26:39+00:00",
+      "updated_at": "2026-11-07T23:54:05+00:00",
       "matter_code": "LIT-2291",
       "updated_by_name": null
     },
@@ -124,7 +124,7 @@
       "certainty": "observed",
       "notes": "Mail transport stopped. Use Vigil chat and phone alerts instead of firm email.",
       "updated_by": null,
-      "updated_at": "2026-11-07T23:26:39+00:00",
+      "updated_at": "2026-11-07T23:54:05+00:00",
       "matter_code": null,
       "updated_by_name": null
     }
@@ -140,7 +140,7 @@
       "certainty": "unknown",
       "is_simulated": true,
       "created_by": null,
-      "created_at": "2026-11-07T23:26:39+00:00",
+      "created_at": "2026-11-07T23:54:05+00:00",
       "detail": {
         "dest": "203.0.113.45:443",
         "bytes": 41943040,
@@ -157,7 +157,7 @@
       "certainty": "observed",
       "is_simulated": true,
       "created_by": null,
-      "created_at": "2026-11-07T23:26:39+00:00",
+      "created_at": "2026-11-07T23:54:05+00:00",
       "detail": {
         "host": "WS-ADM-11",
         "user": "svc_printscan",
@@ -184,7 +184,7 @@
       "certainty": "observed",
       "is_simulated": true,
       "created_by": null,
-      "created_at": "2026-11-07T23:26:39+00:00",
+      "created_at": "2026-11-07T23:54:05+00:00",
       "detail": {
         "path": "/dms/matters/LIT-2291/README_RESTORE_FILES.txt",
         "host": "WS-ADM-11"
@@ -200,7 +200,7 @@
       "certainty": "observed",
       "is_simulated": true,
       "created_by": null,
-      "created_at": "2026-11-07T23:26:39+00:00",
+      "created_at": "2026-11-07T23:54:05+00:00",
       "detail": {
         "path": "/dms/matters/CORP-1180/README_RESTORE_FILES.txt",
         "host": "WS-ADM-11"
@@ -216,7 +216,7 @@
       "certainty": "observed",
       "is_simulated": true,
       "created_by": null,
-      "created_at": "2026-11-07T23:26:39+00:00",
+      "created_at": "2026-11-07T23:54:05+00:00",
       "detail": {
         "host": "MAIL-GW-01",
         "service": "mail-transport"
@@ -228,7 +228,7 @@
   "timeline": [
     {
       "id": 1,
-      "at": "2026-11-07T23:26:39+00:00",
+      "at": "2026-11-07T23:54:05+00:00",
       "kind": "detection",
       "summary": "Simulated detector flagged 39 file renames on WS-ADM-11",
       "actor_user_id": null,
@@ -240,7 +240,7 @@
     },
     {
       "id": 2,
-      "at": "2026-11-07T23:26:39+00:00",
+      "at": "2026-11-07T23:54:05+00:00",
       "kind": "evidence_added",
       "summary": "Evidence EV-1 recorded: 40.0 MB sent to 203.0.113.45:443 \u2014 contents unknown, copying not verified",
       "actor_user_id": null,
@@ -251,7 +251,7 @@
     },
     {
       "id": 3,
-      "at": "2026-11-07T23:26:39+00:00",
+      "at": "2026-11-07T23:54:05+00:00",
       "kind": "evidence_added",
       "summary": "Evidence EV-2 recorded: 39 files renamed to .vgl0ck on WS-ADM-11 in 50 seconds",
       "actor_user_id": null,
@@ -262,7 +262,7 @@
     },
     {
       "id": 4,
-      "at": "2026-11-07T23:26:39+00:00",
+      "at": "2026-11-07T23:54:05+00:00",
       "kind": "evidence_added",
       "summary": "Evidence EV-3 recorded: Possible ransom note created: README_RESTORE_FILES.txt",
       "actor_user_id": null,
@@ -273,7 +273,7 @@
     },
     {
       "id": 5,
-      "at": "2026-11-07T23:26:39+00:00",
+      "at": "2026-11-07T23:54:05+00:00",
       "kind": "evidence_added",
       "summary": "Evidence EV-4 recorded: Possible ransom note created: README_RESTORE_FILES.txt",
       "actor_user_id": null,
@@ -284,7 +284,7 @@
     },
     {
       "id": 6,
-      "at": "2026-11-07T23:26:39+00:00",
+      "at": "2026-11-07T23:54:05+00:00",
       "kind": "evidence_added",
       "summary": "Evidence EV-5 recorded: mail-transport stopped on MAIL-GW-01",
       "actor_user_id": null,
@@ -295,7 +295,7 @@
     },
     {
       "id": 7,
-      "at": "2026-11-07T23:26:39+00:00",
+      "at": "2026-11-07T23:54:05+00:00",
       "kind": "scope_added",
       "summary": "Initial scope recorded from detection: matter files locked, email degraded, data copying unverified",
       "actor_user_id": null,
@@ -313,5 +313,5 @@
     "affected_systems": 2,
     "messages": 0
   },
-  "server_time": "2026-11-07T23:26:39+00:00"
+  "server_time": "2026-11-07T23:54:05+00:00"
 }

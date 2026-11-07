@@ -27,13 +27,13 @@ export default function Login() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-navy-950 px-4">
-      <form onSubmit={submit} className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-xl">
+    <div className="flex min-h-screen items-center justify-center bg-transparent px-4">
+      <form onSubmit={submit} className="w-full max-w-sm rounded-2xl bg-panel p-8 shadow-xl">
         <div className="mb-6 flex items-center gap-3">
-          <ShieldCheck className="h-9 w-9 text-navy-700" />
+          <ShieldCheck className="h-9 w-9 text-accent" />
           <div>
-            <h1 className="text-2xl font-bold text-navy-900">Vigil</h1>
-            <p className="text-sm text-slate-500">Incident command center</p>
+            <h1 className="text-2xl font-bold text-ink">Vigil</h1>
+            <p className="text-sm text-muted">Incident command center</p>
           </div>
         </div>
         <ErrorBanner message={error} />
@@ -46,7 +46,7 @@ export default function Login() {
         <button className="btn-primary w-full justify-center py-3" disabled={busy}>
           {busy ? "Signing in…" : "Sign in"}
         </button>
-        <p className="mt-6 text-xs leading-relaxed text-slate-500">
+        <p className="mt-6 text-xs leading-relaxed text-muted">
           Vigil uses its own accounts, separate from firm email and single sign-on. Use the Vigil credentials your
           incident admin gave you.
         </p>

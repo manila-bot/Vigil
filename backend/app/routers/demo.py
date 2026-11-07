@@ -31,6 +31,7 @@ def simulate(body: SimulateIn = SimulateIn(), user=Depends(current_user), conn=D
         return {"detected": True, "created": False, "fixture": body.fixture, "events_scanned": len(events),
                 "incident_id": existing["id"], "message": "This activity is already tracked as an open incident."}
 
+    load_matters(conn)  # make deadlines relative to the moment the demo runs
     ts = now()
     title = f"[SIMULATED] Ransomware-like file encryption on {f['host']}"
     summary = (f"Simulated detection: {f['rename_count']} document files renamed to {', '.join(f['new_extension'])} "

@@ -193,10 +193,15 @@ def _local_tz():
 
 
 def local_deadline(hhmm: str, day_offset: int = 0) -> str:
-    """Turn '14:00' into today's (or a later day's) local deadline, stored as UTC ISO."""
+    """Turn '14:00' into today's (or a later day's) local deadline, stored as UTC ISO.
+    Demo-friendly: if a same-day deadline is less than 2 hours away (or already passed),
+    move it to the top of the hour ~4 hours from now so the story always has a live deadline."""
     tz = _local_tz()
     h, m = (int(x) for x in hhmm.split(":"))
-    local = datetime.now(tz).replace(hour=h, minute=m, second=0, microsecond=0) + timedelta(days=day_offset)
+    now = datetime.now(tz)
+    local = now.replace(hour=h, minute=m, second=0, microsecond=0) + timedelta(days=day_offset)
+    if day_offset == 0 and local - now < timedelta(hours=2):
+        local = (now + timedelta(hours=5)).replace(minute=0, second=0, microsecond=0)
     return local.astimezone(timezone.utc).isoformat(timespec="seconds")
 
 

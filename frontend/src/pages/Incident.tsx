@@ -1,8 +1,9 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Bot, Check, CheckCircle2, Clock, Loader2, MessageSquare, Phone, Send, Wrench, X } from "lucide-react";
+import { ArrowLeft, Bot, Check, CheckCircle2, Clock, ListChecks, Loader2, Lock, MessageSquare, Phone, Send, ShieldQuestion, Wrench, X } from "lucide-react";
+import { timeLeft } from "./CommandCenter";
 import { get, patch, post, session } from "../api/client";
-import { Badge, ErrorBanner, fmtTime, LABELS, SimulatedTag, Spinner, StaleBanner, usePoll } from "../components/ui";
+import { Badge, ErrorBanner, fmtTime, LABELS, responseSteps, SimulatedTag, Spinner, StaleBanner, StatTile, Stepper, usePoll } from "../components/ui";
 
 type Tab = "scope" | "room" | "timeline";
 
@@ -28,44 +29,67 @@ export default function Incident() {
   if (!data) return error ? <ErrorBanner message={error} /> : <Spinner />;
   const inc = data.incident;
 
+  const urgent = data.matters_at_risk.find((m: any) => m.deadline_at && m.at_risk);
+  const locked = data.scope.filter((s: any) => ["locked", "destroyed"].includes(s.availability)).length;
+  const steps = responseSteps(data);
+  const next = steps.find((s) => !s.done);
+
   return (
-    <div className="mx-auto max-w-7xl">
-      <Link to="/" className="mb-3 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800">
+    <div>
+      <Link to="/" className="mb-4 inline-flex items-center gap-1 text-sm text-muted hover:text-ink">
         <ArrowLeft className="h-4 w-4" /> Command Center
       </Link>
-      <header className="mb-4 flex flex-wrap items-start justify-between gap-4">
+
+      {/* Title + KPI tiles */}
+      <header className="mb-6 space-y-5">
         <div>
-          <div className="flex items-center gap-2 text-sm text-slate-500">
-            <span className="font-mono">{inc.code}</span>
+          <div className="mb-2 flex flex-wrap items-center gap-2 text-sm text-muted">
+            <span className="rounded-full border border-line bg-panel px-2.5 py-0.5 font-mono text-xs">{inc.code}</span>
             {inc.source === "simulated" && <SimulatedTag />}
-            <span>· opened {fmtTime(inc.created_at)}</span>
+            <Badge kind="severity" value={inc.severity} />
+            <span>opened {fmtTime(inc.created_at)}</span>
           </div>
-          <h1 className="text-2xl font-bold text-navy-900">{inc.title}</h1>
+          <h1 className="max-w-5xl text-4xl font-semibold leading-tight tracking-tight">{inc.title.replace("[SIMULATED] ", "")}</h1>
         </div>
-        <div className="flex items-center gap-2">
-          <Badge kind="severity" value={inc.severity} />
-          <label className="sr-only" htmlFor="status">Status</label>
-          <select id="status" className="input w-44" value={inc.status} onChange={(e) => act("PATCH", "", { status: e.target.value })}>
-            {Object.entries(LABELS.status).map(([v, l]) => <option key={v} value={v}>Status: {l}</option>)}
-          </select>
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <StatTile icon={<Clock className="h-6 w-6" />} label={urgent ? `${urgent.deadline_local} ${urgent.deadline_label}` : "Deadlines"}
+            value={urgent ? timeLeft(urgent.deadline_at) : "None"} tone={urgent ? "critical" : "ok"} note={urgent ? "at risk" : "not affected"} />
+          <StatTile icon={<Lock className="h-6 w-6" />} label="Locked data sets" value={locked} tone={locked ? "critical" : "ok"}
+            note={locked ? "files can't be opened" : "files available"} />
+          <StatTile icon={<ShieldQuestion className="h-6 w-6" />} label="Copying unverified" value={data.counts.unverified_exposure}
+            tone={data.counts.unverified_exposure ? "warning" : "ok"} note={data.counts.unverified_exposure ? "still need to confirm" : "checked"} />
+          <StatTile icon={<ListChecks className="h-6 w-6" />} label="Open tasks" value={data.counts.open_tasks} note={`${data.tasks.length - data.counts.open_tasks} done`} />
         </div>
       </header>
 
-      {/* Headline chips: what's at risk, in plain words */}
-      <div className="mb-5 flex flex-wrap gap-2">
-        {data.headline.map((h: any) => (
-          <Badge key={h.label} value={h.label} tone={h.tone} />
-        ))}
-      </div>
+      {/* What to do next */}
+      <section className="card mb-6 p-5">
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+          <div>
+            <div className="text-xs uppercase tracking-wider text-faint">What to do next</div>
+            <div className="text-lg font-semibold">{next ? next.hint : "All response steps are complete."}</div>
+          </div>
+          <div className="ml-auto flex items-center gap-2">
+            <label className="sr-only" htmlFor="status">Status</label>
+            <select id="status" className="input w-48 rounded-full" value={inc.status} onChange={(e) => act("PATCH", "", { status: e.target.value })}>
+              {Object.entries(LABELS.status).map(([v, l]) => <option key={v} value={v}>Status: {l}</option>)}
+            </select>
+          </div>
+        </div>
+        <Stepper steps={steps} />
+        <div className="mt-4 flex flex-wrap gap-2">
+          {data.headline.map((h: any) => <Badge key={h.label} value={h.label} tone={h.tone} />)}
+        </div>
+      </section>
       <StaleBanner stale={stale} error={error} />
       <ErrorBanner message={actionError} />
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <div className="xl:col-span-2">
-          <div className="mb-4 flex gap-1 rounded-lg bg-slate-200/60 p-1">
+          <div className="mb-4 inline-flex gap-1 rounded-full border border-line bg-panel p-1">
             {([["scope", "Scope"], ["room", `Response Room (${data.messages.length})`], ["timeline", "Timeline"]] as const).map(([k, l]) => (
               <button key={k} onClick={() => setTab(k)}
-                className={`flex-1 rounded-md px-3 py-2 text-sm font-semibold ${tab === k ? "bg-white text-navy-900 shadow" : "text-slate-600 hover:text-slate-900"}`}>
+                className={tab === k ? "pill-active" : "pill"}>
                 {l}
               </button>
             ))}
@@ -87,27 +111,27 @@ function ScopeTab({ data, act }: { data: any; act: Function }) {
       {data.matters_at_risk.length > 0 && (
         <section className="grid grid-cols-1 gap-3 md:grid-cols-2">
           {data.matters_at_risk.map((m: any) => (
-            <div key={m.matter_code} className={`card p-4 ${m.at_risk ? "border-red-200" : ""}`}>
-              <div className="flex items-center justify-between text-xs text-slate-500">
+            <div key={m.matter_code} className={`card p-4 ${m.at_risk ? "border-red-500/40" : ""}`}>
+              <div className="flex items-center justify-between text-xs text-muted">
                 <span className="font-mono">{m.matter_code}</span>
                 {m.is_simulated && <SimulatedTag />}
               </div>
               <div className="mt-1 font-semibold">{m.title}</div>
               {m.deadline_local && (
-                <div className={`mt-2 flex items-center gap-1.5 text-sm font-semibold ${m.at_risk ? "text-red-700" : "text-slate-700"}`}>
+                <div className={`mt-2 flex items-center gap-1.5 text-sm font-semibold ${m.at_risk ? "text-red-300" : "text-ink"}`}>
                   <Clock className="h-4 w-4" /> {m.deadline_local} {m.deadline_label}
                 </div>
               )}
-              <div className="mt-1 text-xs text-slate-500">Lead: {m.lead_name} ({m.lead_role})</div>
+              <div className="mt-1 text-xs text-muted">Lead: {m.lead_name} ({m.lead_role})</div>
             </div>
           ))}
         </section>
       )}
 
       <section className="card overflow-x-auto">
-        <h2 className="border-b border-slate-100 px-5 py-3 font-semibold">Affected data</h2>
+        <h2 className="border-b border-line px-5 py-3 font-semibold">Affected data</h2>
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+          <thead className="bg-panel2 text-left text-xs uppercase tracking-wide text-muted">
             <tr>
               <th className="px-4 py-2">System / data</th>
               <th className="px-4 py-2">File availability</th>
@@ -115,19 +139,19 @@ function ScopeTab({ data, act }: { data: any; act: Function }) {
               <th className="px-4 py-2">How sure?</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-line">
             {data.scope.map((s: any) => (
               <tr key={s.id} className="align-top">
                 <td className="px-4 py-3">
                   <div className="font-medium">{s.system}</div>
-                  <div className="text-xs text-slate-500">{s.data_category}</div>
-                  {s.notes && <div className="mt-1 max-w-xs text-xs text-slate-500">{s.notes}</div>}
-                  <div className="mt-1 text-[11px] text-slate-400">Updated {fmtTime(s.updated_at)}{s.updated_by_name ? ` by ${s.updated_by_name}` : ""}</div>
+                  <div className="text-xs text-muted">{s.data_category}</div>
+                  {s.notes && <div className="mt-1 max-w-xs text-xs text-muted">{s.notes}</div>}
+                  <div className="mt-1 text-[11px] text-faint">Updated {fmtTime(s.updated_at)}{s.updated_by_name ? ` by ${s.updated_by_name}` : ""}</div>
                 </td>
                 {(["availability", "copying", "certainty"] as const).map((field) => (
                   <td key={field} className="px-4 py-3">
                     <Badge kind={field} value={s[field]} />
-                    <select aria-label={`Change ${field}`} className="mt-2 block w-full rounded border border-slate-200 bg-white px-1.5 py-1 text-xs"
+                    <select aria-label={`Change ${field}`} className="mt-2 block w-full rounded border border-line bg-panel px-1.5 py-1 text-xs"
                       value={s[field]} onChange={(e) => act("PATCH", `/scope/${s.id}`, { [field]: e.target.value })}>
                       {Object.entries(LABELS[field]).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                     </select>
@@ -141,15 +165,15 @@ function ScopeTab({ data, act }: { data: any; act: Function }) {
       </section>
 
       <section className="card">
-        <h2 className="border-b border-slate-100 px-5 py-3 font-semibold">Evidence</h2>
-        <ul className="divide-y divide-slate-100">
-          {data.evidence.length === 0 && <li className="p-5 text-sm text-slate-500">No evidence recorded yet.</li>}
+        <h2 className="border-b border-line px-5 py-3 font-semibold">Evidence</h2>
+        <ul className="divide-y divide-line">
+          {data.evidence.length === 0 && <li className="p-5 text-sm text-muted">No evidence recorded yet.</li>}
           {data.evidence.map((e: any) => (
             <li key={e.id} id={e.ref} className="flex items-start gap-3 px-5 py-3 text-sm">
-              <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs">{e.ref}</span>
+              <span className="rounded bg-panel2 px-1.5 py-0.5 font-mono text-xs">{e.ref}</span>
               <div className="flex-1">
                 <div>{e.description}</div>
-                <div className="text-xs text-slate-500">{fmtTime(e.observed_at)} · {e.kind.replace(/_/g, " ")}</div>
+                <div className="text-xs text-muted">{fmtTime(e.observed_at)} · {e.kind.replace(/_/g, " ")}</div>
               </div>
               <Badge kind="certainty" value={e.certainty} />
               {e.is_simulated && <SimulatedTag />}
@@ -166,7 +190,7 @@ function AddScope({ act }: { act: Function }) {
   const [f, setF] = useState({ system: "", data_category: "", availability: "unknown", copying: "unknown", certainty: "unknown" });
   if (!open)
     return (
-      <button className="m-4 text-sm font-semibold text-navy-700 hover:underline" onClick={() => setOpen(true)}>
+      <button className="m-4 text-sm font-semibold text-accent hover:underline" onClick={() => setOpen(true)}>
         + Add affected data
       </button>
     );
@@ -175,7 +199,7 @@ function AddScope({ act }: { act: Function }) {
     if (await act("POST", "/scope", f)) setOpen(false);
   }
   return (
-    <form onSubmit={submit} className="grid grid-cols-2 gap-3 border-t border-slate-100 p-4 md:grid-cols-5">
+    <form onSubmit={submit} className="grid grid-cols-2 gap-3 border-t border-line p-4 md:grid-cols-5">
       <input className="input" required placeholder="System (e.g. Billing)" value={f.system} onChange={(e) => setF({ ...f, system: e.target.value })} />
       <input className="input" required placeholder="Data (e.g. Invoices)" value={f.data_category} onChange={(e) => setF({ ...f, data_category: e.target.value })} />
       {(["availability", "copying", "certainty"] as const).map((k) => (
@@ -212,18 +236,18 @@ function RoomTab({ data, act }: { data: any; act: Function }) {
   return (
     <div className="space-y-5">
       <section className="card flex h-[420px] flex-col">
-        <h2 className="flex items-center gap-2 border-b border-slate-100 px-5 py-3 font-semibold">
+        <h2 className="flex items-center gap-2 border-b border-line px-5 py-3 font-semibold">
           <MessageSquare className="h-4 w-4" /> Response Room
-          <span className="ml-auto text-xs font-normal text-slate-500">Inside Vigil only. Not firm email.</span>
+          <span className="ml-auto text-xs font-normal text-muted">Inside Vigil only. Not firm email.</span>
         </h2>
         <div className="flex-1 space-y-3 overflow-y-auto p-5">
-          {data.messages.length === 0 && <p className="text-sm text-slate-500">No messages yet. Say what you're working on.</p>}
+          {data.messages.length === 0 && <p className="text-sm text-muted">No messages yet. Say what you're working on.</p>}
           {data.messages.map((m: any) => {
             const mine = m.user_id === me?.id;
             return (
               <div key={m.id} className={`flex ${mine ? "justify-end" : ""}`}>
-                <div className={`max-w-[75%] rounded-2xl px-4 py-2 text-sm ${mine ? "bg-navy-700 text-white" : "bg-slate-100"}`}>
-                  <div className={`mb-0.5 text-xs ${mine ? "text-slate-300" : "text-slate-500"}`}>
+                <div className={`max-w-[75%] rounded-2xl px-4 py-2 text-sm ${mine ? "bg-accent text-black" : "bg-panel2"}`}>
+                  <div className={`mb-0.5 text-xs ${mine ? "text-black/60" : "text-muted"}`}>
                     {m.user_name}{m.team_role ? ` · ${m.team_role}` : ""} · {fmtTime(m.created_at)}
                   </div>
                   {m.body}
@@ -233,7 +257,7 @@ function RoomTab({ data, act }: { data: any; act: Function }) {
           })}
           <div ref={endRef} />
         </div>
-        <form onSubmit={send} className="flex gap-2 border-t border-slate-100 p-3">
+        <form onSubmit={send} className="flex gap-2 border-t border-line p-3">
           <input className="input" placeholder="Type an update, e.g. “Backup copy located.”" value={body} onChange={(e) => setBody(e.target.value)} />
           <button className="btn-primary" disabled={sending || !body.trim()}>
             <Send className="h-4 w-4" /> Send
@@ -248,18 +272,18 @@ function RoomTab({ data, act }: { data: any; act: Function }) {
 function TasksCard({ data, act }: { data: any; act: Function }) {
   return (
     <section className="card">
-      <h2 className="border-b border-slate-100 px-5 py-3 font-semibold">Tasks ({data.counts.open_tasks} open)</h2>
-      <ul className="divide-y divide-slate-100">
-        {data.tasks.length === 0 && <li className="p-5 text-sm text-slate-500">No tasks yet. Run AI triage or add one.</li>}
+      <h2 className="border-b border-line px-5 py-3 font-semibold">Tasks ({data.counts.open_tasks} open)</h2>
+      <ul className="divide-y divide-line">
+        {data.tasks.length === 0 && <li className="p-5 text-sm text-muted">No tasks yet. Run AI triage or add one.</li>}
         {data.tasks.map((t: any) => (
           <li key={t.id} className="flex items-start gap-3 px-5 py-3 text-sm">
             <input type="checkbox" aria-label="Mark done" className="mt-1 h-4 w-4" checked={t.status === "done"}
               onChange={(e) => act("PATCH", `/tasks/${t.id}`, { status: e.target.checked ? "done" : "open" })} />
             <div className="flex-1">
-              <div className={t.status === "done" ? "text-slate-400 line-through" : "font-medium"}>{t.title}</div>
-              <div className="mt-0.5 text-xs text-slate-500">
+              <div className={t.status === "done" ? "text-faint line-through" : "font-medium"}>{t.title}</div>
+              <div className="mt-0.5 text-xs text-muted">
                 {t.owner_name ?? t.owner_label ?? "Unassigned"} · due {fmtTime(t.due_at)}
-                {t.evidence_refs.length > 0 && <> · evidence {t.evidence_refs.map((r: string) => <a key={r} href={`#${r}`} className="ml-1 font-mono text-navy-700 underline">{r}</a>)}</>}
+                {t.evidence_refs.length > 0 && <> · evidence {t.evidence_refs.map((r: string) => <a key={r} href={`#${r}`} className="ml-1 font-mono text-accent underline">{r}</a>)}</>}
                 {t.source === "ai" && <> · AI-drafted, approved by {t.approved_by_name}</>}
               </div>
             </div>
@@ -276,11 +300,11 @@ function TasksCard({ data, act }: { data: any; act: Function }) {
 function TimelineTab({ data }: { data: any }) {
   return (
     <section className="card p-5">
-      <ol className="relative ml-2 border-l-2 border-slate-200">
+      <ol className="relative ml-2 border-l-2 border-line">
         {[...data.timeline].reverse().map((e: any) => (
           <li key={e.id} className="mb-4 ml-5">
-            <span className="absolute -left-[7px] mt-1.5 h-3 w-3 rounded-full border-2 border-white bg-navy-600" />
-            <div className="text-xs text-slate-500">
+            <span className="absolute -left-[7px] mt-1.5 h-3 w-3 rounded-full border-2 border-panel bg-accent" />
+            <div className="text-xs text-muted">
               {new Date(e.at).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit" })}
               {" · "}{e.actor_name ?? "System"} · <span className="font-mono">{e.kind}</span>
             </div>
@@ -324,7 +348,7 @@ function TriagePanel({ data, act }: { data: any; act: Function }) {
   return (
     <aside className="card h-fit p-5">
       <div className="mb-3 flex items-center gap-2">
-        <Bot className="h-5 w-5 text-navy-700" />
+        <Bot className="h-5 w-5 text-accent" />
         <h2 className="font-semibold">AI Triage</h2>
         {t?.is_mock && <SimulatedTag />}
         {t && <span className="ml-auto"><Badge value={t.status} tone={t.status === "approved" ? "ok" : t.status === "failed" ? "critical" : "info"} /></span>}
@@ -332,7 +356,7 @@ function TriagePanel({ data, act }: { data: any; act: Function }) {
 
       {(!t || ["rejected", "failed"].includes(t.status)) && (
         <>
-          <p className="mb-3 text-sm text-slate-600">
+          <p className="mb-3 text-sm text-muted">
             The AI reads the evidence and affected matters, then drafts a prioritized plan. Nothing happens until a person approves it.
           </p>
           {t?.status === "failed" && <ErrorBanner message={`AI triage failed. Keep working manually. (${t.error})`} />}
@@ -347,10 +371,10 @@ function TriagePanel({ data, act }: { data: any; act: Function }) {
           <div className="label">Tool activity</div>
           <ol className="space-y-1.5">
             {t.tool_calls.map((c: any) => (
-              <li key={c.step} className="flex items-center gap-2 rounded-md bg-slate-50 px-2.5 py-1.5 text-xs">
-                <Wrench className="h-3.5 w-3.5 text-slate-500" />
+              <li key={c.step} className="flex items-center gap-2 rounded-md bg-panel2 px-2.5 py-1.5 text-xs">
+                <Wrench className="h-3.5 w-3.5 text-muted" />
                 <span className="font-mono">{c.tool}</span>
-                <span className="ml-auto text-slate-500">{c.result_summary}</span>
+                <span className="ml-auto text-muted">{c.result_summary}</span>
               </li>
             ))}
           </ol>
@@ -359,18 +383,18 @@ function TriagePanel({ data, act }: { data: any; act: Function }) {
 
       {t?.draft && (
         <div className="mt-4 space-y-3">
-          <p className="text-sm text-slate-700">{t.draft.summary}</p>
+          <p className="text-sm text-ink">{t.draft.summary}</p>
           <div>
             <div className="label">Proposed tasks</div>
             <ul className="space-y-2">
               {t.draft.tasks.map((d: any, i: number) => (
-                <li key={i} className="rounded-lg border border-slate-200 p-3 text-sm">
+                <li key={i} className="rounded-xl border border-line p-3 text-sm">
                   <div className="font-medium">{d.title}</div>
-                  <div className="mt-1 text-xs text-slate-500">
+                  <div className="mt-1 text-xs text-muted">
                     {d.owner_role} · due {fmtTime(d.due_at)} · {LABELS.severity[d.priority]}
                     {d.evidence_refs?.length > 0 && <> · {d.evidence_refs.join(", ")}</>}
                   </div>
-                  {d.rationale && <div className="mt-1 text-xs italic text-slate-500">{d.rationale}</div>}
+                  {d.rationale && <div className="mt-1 text-xs italic text-muted">{d.rationale}</div>}
                 </li>
               ))}
             </ul>
@@ -378,7 +402,7 @@ function TriagePanel({ data, act }: { data: any; act: Function }) {
           {t.draft.unknowns?.length > 0 && (
             <div>
               <div className="label">Still unknown</div>
-              <ul className="list-disc space-y-0.5 pl-5 text-sm text-amber-900">
+              <ul className="list-disc space-y-0.5 pl-5 text-sm text-amber-200">
                 {t.draft.unknowns.map((u: string) => <li key={u}>{u}</li>)}
               </ul>
             </div>
@@ -398,14 +422,14 @@ function TriagePanel({ data, act }: { data: any; act: Function }) {
       )}
 
       {t?.status === "approved" && (
-        <div className="mt-4 border-t border-slate-100 pt-4">
-          <div className="mb-2 flex items-center gap-1.5 text-sm text-emerald-800">
+        <div className="mt-4 border-t border-line pt-4">
+          <div className="mb-2 flex items-center gap-1.5 text-sm text-lime">
             <CheckCircle2 className="h-4 w-4" /> Approved by {t.decided_by} at {fmtTime(t.decided_at)}
           </div>
           <div className="label">Send phone alert</div>
-          <p className="mb-2 text-xs text-slate-500">Sends only a generic code ({data.incident.code}). Client and case details stay in Vigil.</p>
+          <p className="mb-2 text-xs text-muted">Sends only a generic code ({data.incident.code}). Client and case details stay in Vigil.</p>
           {recipients.length === 0 ? (
-            <p className="text-xs text-amber-800">No one has agreed to phone alerts yet. An admin can turn this on in Access.</p>
+            <p className="text-xs text-amber-200">No one has agreed to phone alerts yet. An admin can turn this on in Access.</p>
           ) : (
             <div className="flex gap-2">
               <select className="input" value={recipient} onChange={(e) => setRecipient(Number(e.target.value) || "")}>
@@ -424,7 +448,7 @@ function TriagePanel({ data, act }: { data: any; act: Function }) {
         <div className="mt-4 space-y-2">
           <div className="label">Alerts</div>
           {data.notifications.map((n: any) => (
-            <div key={n.id} className="rounded-lg border border-slate-200 p-3 text-xs">
+            <div key={n.id} className="rounded-xl border border-line p-3 text-xs">
               <div className="mb-1.5 flex items-center gap-2 font-medium">
                 {n.recipient_label} · {n.channel} {n.is_mock && <SimulatedTag />}
               </div>
@@ -435,7 +459,7 @@ function TriagePanel({ data, act }: { data: any; act: Function }) {
                   tone={n.acknowledged_at ? "ok" : "neutral"} />
               </div>
               {!n.acknowledged_at && (
-                <button className="mt-2 text-navy-700 underline" onClick={() => act("POST", `/notifications/${n.id}/ack`)}>
+                <button className="mt-2 text-accent underline" onClick={() => act("POST", `/notifications/${n.id}/ack`)}>
                   Record acknowledgement
                 </button>
               )}

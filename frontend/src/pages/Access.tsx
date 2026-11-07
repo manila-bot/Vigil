@@ -45,10 +45,10 @@ export default function Access() {
 
   return (
     <div className="mx-auto max-w-5xl">
-      <h1 className="mb-1 text-2xl font-bold text-navy-900">Access</h1>
-      <p className="mb-6 text-sm text-slate-500">Add responders to Vigil and remove them. These accounts are separate from firm accounts.</p>
+      <h1 className="mb-1 text-2xl font-bold text-ink">Access</h1>
+      <p className="mb-6 text-sm text-muted">Add responders to Vigil and remove them. These accounts are separate from firm accounts.</p>
       <ErrorBanner message={error} />
-      {notice && <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-900">{notice}</div>}
+      {notice && <div className="mb-4 rounded-xl border border-lime/30 bg-lime-soft px-4 py-2 text-sm text-lime">{notice}</div>}
 
       <form onSubmit={add} className="card mb-6 grid grid-cols-1 gap-3 p-5 md:grid-cols-3">
         <h2 className="col-span-full flex items-center gap-2 font-semibold"><UserPlus className="h-4 w-4" /> Add a responder</h2>
@@ -73,19 +73,19 @@ export default function Access() {
 
       <section className="card overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+          <thead className="bg-panel2 text-left text-xs uppercase tracking-wide text-muted">
             <tr><th className="px-4 py-2">Person</th><th className="px-4 py-2">Role</th><th className="px-4 py-2">Phone alerts</th><th className="px-4 py-2">Status</th><th /></tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-line">
             {users.map((u) => (
               <tr key={u.id} className={u.active ? "" : "opacity-60"}>
-                <td className="px-4 py-3"><div className="font-medium">{u.name}</div><div className="text-xs text-slate-500">{u.email}</div></td>
-                <td className="px-4 py-3">{u.team_role ?? "—"} <span className="text-xs text-slate-500">({u.role})</span></td>
+                <td className="px-4 py-3"><div className="font-medium">{u.name}</div><div className="text-xs text-muted">{u.email}</div></td>
+                <td className="px-4 py-3">{u.team_role ?? "—"} <span className="text-xs text-muted">({u.role})</span></td>
                 <td className="px-4 py-3">{u.alert_opt_in ? <Badge value={`Yes · ${u.phone_masked ?? "no phone"}`} tone="ok" /> : <Badge value="No" tone="neutral" />}</td>
                 <td className="px-4 py-3"><Badge value={u.active ? "Active" : "Deactivated"} tone={u.active ? "ok" : "neutral"} /></td>
                 <td className="px-4 py-3 text-right">
                   {u.id !== me.id && (
-                    <button className={u.active ? "btn-ghost text-red-700" : "btn-ghost"} onClick={() => update(u.id, { active: !u.active })}>
+                    <button className={u.active ? "btn-ghost text-red-300" : "btn-ghost"} onClick={() => update(u.id, { active: !u.active })}>
                       {u.active ? "Deactivate" : "Reactivate"}
                     </button>
                   )}

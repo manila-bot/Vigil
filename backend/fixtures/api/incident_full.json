@@ -10,13 +10,13 @@
     "detected_at": "2026-11-07T14:52:03Z",
     "source": "simulated",
     "created_by": 2,
-    "created_at": "2026-11-07T23:26:39+00:00",
-    "updated_at": "2026-11-07T23:26:39+00:00",
+    "created_at": "2026-11-07T23:54:05+00:00",
+    "updated_at": "2026-11-07T23:54:05+00:00",
     "created_by_name": "Demo Responder"
   },
   "headline": [
     {
-      "label": "2:00 PM court filing at risk",
+      "label": "10:00 PM court filing at risk",
       "tone": "critical",
       "kind": "deadline",
       "matter_code": "LIT-2291"
@@ -47,7 +47,7 @@
       "practice_area": "Litigation",
       "lead_name": "Dana Ortiz (fictional)",
       "lead_role": "Litigation lead",
-      "deadline_at": "2026-11-07T20:00:00+00:00",
+      "deadline_at": "2026-11-08T04:00:00+00:00",
       "deadline_label": "court filing",
       "path_prefix": "/dms/matters/LIT-2291/",
       "is_simulated": true,
@@ -58,7 +58,7 @@
         "unknown"
       ],
       "at_risk": true,
-      "deadline_local": "2:00 PM"
+      "deadline_local": "10:00 PM"
     },
     {
       "id": 2,
@@ -94,7 +94,7 @@
       "certainty": "observed",
       "notes": "Files renamed with .vgl0ck extension; cannot be opened. Copying not verified.",
       "updated_by": null,
-      "updated_at": "2026-11-07T23:26:39+00:00",
+      "updated_at": "2026-11-07T23:54:05+00:00",
       "matter_code": "CORP-1180",
       "updated_by_name": null
     },
@@ -109,7 +109,7 @@
       "certainty": "observed",
       "notes": "Files renamed with .vgl0ck extension; cannot be opened. Copying not verified.",
       "updated_by": null,
-      "updated_at": "2026-11-07T23:26:39+00:00",
+      "updated_at": "2026-11-07T23:54:05+00:00",
       "matter_code": "LIT-2291",
       "updated_by_name": null
     },
@@ -124,7 +124,7 @@
       "certainty": "observed",
       "notes": "Mail transport stopped. Use Vigil chat and phone alerts instead of firm email.",
       "updated_by": null,
-      "updated_at": "2026-11-07T23:26:39+00:00",
+      "updated_at": "2026-11-07T23:54:05+00:00",
       "matter_code": null,
       "updated_by_name": null
     }
@@ -140,7 +140,7 @@
       "certainty": "unknown",
       "is_simulated": true,
       "created_by": null,
-      "created_at": "2026-11-07T23:26:39+00:00",
+      "created_at": "2026-11-07T23:54:05+00:00",
       "detail": {
         "dest": "203.0.113.45:443",
         "bytes": 41943040,
@@ -157,7 +157,7 @@
       "certainty": "observed",
       "is_simulated": true,
       "created_by": null,
-      "created_at": "2026-11-07T23:26:39+00:00",
+      "created_at": "2026-11-07T23:54:05+00:00",
       "detail": {
         "host": "WS-ADM-11",
         "user": "svc_printscan",
@@ -184,7 +184,7 @@
       "certainty": "observed",
       "is_simulated": true,
       "created_by": null,
-      "created_at": "2026-11-07T23:26:39+00:00",
+      "created_at": "2026-11-07T23:54:05+00:00",
       "detail": {
         "path": "/dms/matters/LIT-2291/README_RESTORE_FILES.txt",
         "host": "WS-ADM-11"
@@ -200,7 +200,7 @@
       "certainty": "observed",
       "is_simulated": true,
       "created_by": null,
-      "created_at": "2026-11-07T23:26:39+00:00",
+      "created_at": "2026-11-07T23:54:05+00:00",
       "detail": {
         "path": "/dms/matters/CORP-1180/README_RESTORE_FILES.txt",
         "host": "WS-ADM-11"
@@ -216,7 +216,7 @@
       "certainty": "observed",
       "is_simulated": true,
       "created_by": null,
-      "created_at": "2026-11-07T23:26:39+00:00",
+      "created_at": "2026-11-07T23:54:05+00:00",
       "detail": {
         "host": "MAIL-GW-01",
         "service": "mail-transport"
@@ -225,65 +225,46 @@
   ],
   "tasks": [
     {
-      "id": 1,
-      "incident_id": 1,
-      "title": "Locate a clean backup copy of the LIT-2291 filing and confirm it opens",
-      "owner_user_id": 2,
-      "owner_label": "Litigation lead",
-      "priority": "critical",
-      "due_at": "2026-11-07T17:00:00+00:00",
-      "status": "open",
-      "source": "ai",
-      "triage_run_id": 1,
-      "approved_by": 2,
-      "created_by": 2,
-      "created_at": "2026-11-07T23:26:39+00:00",
-      "updated_at": "2026-11-07T23:26:39+00:00",
-      "owner_name": "Demo Responder",
-      "approved_by_name": "Demo Responder",
-      "evidence_refs": [
-        "EV-2"
-      ]
-    },
-    {
-      "id": 2,
-      "incident_id": 1,
-      "title": "Prepare an extension request for the LIT-2291 court filing as a fallback",
-      "owner_user_id": 2,
-      "owner_label": "Litigation lead",
-      "priority": "high",
-      "due_at": "2026-11-07T18:00:00+00:00",
-      "status": "open",
-      "source": "ai",
-      "triage_run_id": 1,
-      "approved_by": 2,
-      "created_by": 2,
-      "created_at": "2026-11-07T23:26:39+00:00",
-      "updated_at": "2026-11-07T23:26:39+00:00",
-      "owner_name": "Demo Responder",
-      "approved_by_name": "Demo Responder",
-      "evidence_refs": []
-    },
-    {
       "id": 3,
       "incident_id": 1,
       "title": "Isolate the affected workstation from the network and preserve its logs",
       "owner_user_id": null,
       "owner_label": "IT lead",
       "priority": "critical",
-      "due_at": "2026-11-07T23:56:39+00:00",
+      "due_at": "2026-11-08T00:24:05+00:00",
       "status": "open",
       "source": "ai",
       "triage_run_id": 1,
       "approved_by": 2,
       "created_by": 2,
-      "created_at": "2026-11-07T23:26:39+00:00",
-      "updated_at": "2026-11-07T23:26:39+00:00",
+      "created_at": "2026-11-07T23:54:05+00:00",
+      "updated_at": "2026-11-07T23:54:05+00:00",
       "owner_name": null,
       "approved_by_name": "Demo Responder",
       "evidence_refs": [
         "EV-2",
         "EV-4"
+      ]
+    },
+    {
+      "id": 1,
+      "incident_id": 1,
+      "title": "Locate a clean backup copy of the LIT-2291 filing and confirm it opens",
+      "owner_user_id": 2,
+      "owner_label": "Litigation lead",
+      "priority": "critical",
+      "due_at": "2026-11-08T01:00:00+00:00",
+      "status": "open",
+      "source": "ai",
+      "triage_run_id": 1,
+      "approved_by": 2,
+      "created_by": 2,
+      "created_at": "2026-11-07T23:54:05+00:00",
+      "updated_at": "2026-11-07T23:54:05+00:00",
+      "owner_name": "Demo Responder",
+      "approved_by_name": "Demo Responder",
+      "evidence_refs": [
+        "EV-2"
       ]
     },
     {
@@ -293,26 +274,45 @@
       "owner_user_id": null,
       "owner_label": "IT lead",
       "priority": "high",
-      "due_at": "2026-11-08T01:26:39+00:00",
+      "due_at": "2026-11-08T01:54:05+00:00",
       "status": "open",
       "source": "ai",
       "triage_run_id": 1,
       "approved_by": 2,
       "created_by": 2,
-      "created_at": "2026-11-07T23:26:39+00:00",
-      "updated_at": "2026-11-07T23:26:39+00:00",
+      "created_at": "2026-11-07T23:54:05+00:00",
+      "updated_at": "2026-11-07T23:54:05+00:00",
       "owner_name": null,
       "approved_by_name": "Demo Responder",
       "evidence_refs": [
         "EV-1"
       ]
+    },
+    {
+      "id": 2,
+      "incident_id": 1,
+      "title": "Prepare an extension request for the LIT-2291 court filing as a fallback",
+      "owner_user_id": 2,
+      "owner_label": "Litigation lead",
+      "priority": "high",
+      "due_at": "2026-11-08T02:00:00+00:00",
+      "status": "open",
+      "source": "ai",
+      "triage_run_id": 1,
+      "approved_by": 2,
+      "created_by": 2,
+      "created_at": "2026-11-07T23:54:05+00:00",
+      "updated_at": "2026-11-07T23:54:05+00:00",
+      "owner_name": "Demo Responder",
+      "approved_by_name": "Demo Responder",
+      "evidence_refs": []
     }
   ],
   "messages": [
     {
       "id": 1,
       "body": "Backup copy located.",
-      "created_at": "2026-11-07T23:26:39+00:00",
+      "created_at": "2026-11-07T23:54:05+00:00",
       "user_id": 2,
       "user_name": "Demo Responder",
       "team_role": "Litigation lead"
@@ -321,7 +321,7 @@
   "timeline": [
     {
       "id": 1,
-      "at": "2026-11-07T23:26:39+00:00",
+      "at": "2026-11-07T23:54:05+00:00",
       "kind": "detection",
       "summary": "Simulated detector flagged 39 file renames on WS-ADM-11",
       "actor_user_id": null,
@@ -333,7 +333,7 @@
     },
     {
       "id": 2,
-      "at": "2026-11-07T23:26:39+00:00",
+      "at": "2026-11-07T23:54:05+00:00",
       "kind": "evidence_added",
       "summary": "Evidence EV-1 recorded: 40.0 MB sent to 203.0.113.45:443 \u2014 contents unknown, copying not verified",
       "actor_user_id": null,
@@ -344,7 +344,7 @@
     },
     {
       "id": 3,
-      "at": "2026-11-07T23:26:39+00:00",
+      "at": "2026-11-07T23:54:05+00:00",
       "kind": "evidence_added",
       "summary": "Evidence EV-2 recorded: 39 files renamed to .vgl0ck on WS-ADM-11 in 50 seconds",
       "actor_user_id": null,
@@ -355,7 +355,7 @@
     },
     {
       "id": 4,
-      "at": "2026-11-07T23:26:39+00:00",
+      "at": "2026-11-07T23:54:05+00:00",
       "kind": "evidence_added",
       "summary": "Evidence EV-3 recorded: Possible ransom note created: README_RESTORE_FILES.txt",
       "actor_user_id": null,
@@ -366,7 +366,7 @@
     },
     {
       "id": 5,
-      "at": "2026-11-07T23:26:39+00:00",
+      "at": "2026-11-07T23:54:05+00:00",
       "kind": "evidence_added",
       "summary": "Evidence EV-4 recorded: Possible ransom note created: README_RESTORE_FILES.txt",
       "actor_user_id": null,
@@ -377,7 +377,7 @@
     },
     {
       "id": 6,
-      "at": "2026-11-07T23:26:39+00:00",
+      "at": "2026-11-07T23:54:05+00:00",
       "kind": "evidence_added",
       "summary": "Evidence EV-5 recorded: mail-transport stopped on MAIL-GW-01",
       "actor_user_id": null,
@@ -388,7 +388,7 @@
     },
     {
       "id": 7,
-      "at": "2026-11-07T23:26:39+00:00",
+      "at": "2026-11-07T23:54:05+00:00",
       "kind": "scope_added",
       "summary": "Initial scope recorded from detection: matter files locked, email degraded, data copying unverified",
       "actor_user_id": null,
@@ -399,7 +399,7 @@
     },
     {
       "id": 8,
-      "at": "2026-11-07T23:26:39+00:00",
+      "at": "2026-11-07T23:54:05+00:00",
       "kind": "triage_drafted",
       "summary": "AI triage (MOCK) proposed 4 tasks after 3 tool calls \u2014 awaiting approval",
       "actor_user_id": 2,
@@ -411,7 +411,7 @@
     },
     {
       "id": 9,
-      "at": "2026-11-07T23:26:39+00:00",
+      "at": "2026-11-07T23:54:05+00:00",
       "kind": "triage_approved",
       "summary": "Demo Responder approved the AI draft \u2014 4 tasks created; external alert enabled",
       "actor_user_id": 2,
@@ -428,7 +428,7 @@
     },
     {
       "id": 10,
-      "at": "2026-11-07T23:26:39+00:00",
+      "at": "2026-11-07T23:54:05+00:00",
       "kind": "alert_sent",
       "summary": "Alert (SIMULATED) to Demo Responder via imessage: provider accepted",
       "actor_user_id": 2,
@@ -439,7 +439,7 @@
     },
     {
       "id": 11,
-      "at": "2026-11-07T23:26:39+00:00",
+      "at": "2026-11-07T23:54:05+00:00",
       "kind": "message",
       "summary": "Demo Responder: Backup copy located.",
       "actor_user_id": 2,
@@ -514,13 +514,13 @@
             "title": "Harlow Logistics v. Brightline Freight \u2014 response to motion for summary judgment",
             "lead_name": "Dana Ortiz (fictional)",
             "lead_role": "Litigation lead",
-            "deadline_at": "2026-11-07T20:00:00+00:00",
+            "deadline_at": "2026-11-08T04:00:00+00:00",
             "deadline_label": "court filing",
             "system": "Document management (DMS)",
             "availability": "locked",
             "copying": "unknown",
             "certainty": "observed",
-            "deadline_local": "2:00 PM"
+            "deadline_local": "10:00 PM"
           },
           {
             "matter_code": "CORP-1180",
@@ -559,25 +559,25 @@
       }
     ],
     "draft": {
-      "summary": "MOCK DRAFT (no AI provider enabled). Document files are locked by suspected ransomware; the 2:00 PM court filing for LIT-2291 is at risk. Data copying is not verified.",
+      "summary": "MOCK DRAFT (no AI provider enabled). Document files are locked by suspected ransomware; the 10:00 PM court filing for LIT-2291 is at risk. Data copying is not verified.",
       "tasks": [
         {
           "title": "Locate a clean backup copy of the LIT-2291 filing and confirm it opens",
           "owner_role": "Litigation lead",
           "owner_user_id": 2,
-          "due_at": "2026-11-07T17:00:00+00:00",
+          "due_at": "2026-11-08T01:00:00+00:00",
           "priority": "critical",
           "evidence_refs": [
             "EV-2"
           ],
           "matter_code": "LIT-2291",
-          "rationale": "2:00 PM court filing depends on files that are currently locked."
+          "rationale": "10:00 PM court filing depends on files that are currently locked."
         },
         {
           "title": "Prepare an extension request for the LIT-2291 court filing as a fallback",
           "owner_role": "Litigation lead",
           "owner_user_id": 2,
-          "due_at": "2026-11-07T18:00:00+00:00",
+          "due_at": "2026-11-08T02:00:00+00:00",
           "priority": "high",
           "evidence_refs": [],
           "matter_code": "LIT-2291",
@@ -587,7 +587,7 @@
           "title": "Isolate the affected workstation from the network and preserve its logs",
           "owner_role": "IT lead",
           "owner_user_id": null,
-          "due_at": "2026-11-07T23:56:39+00:00",
+          "due_at": "2026-11-08T00:24:05+00:00",
           "priority": "critical",
           "evidence_refs": [
             "EV-2",
@@ -600,7 +600,7 @@
           "title": "Determine whether data was copied out in the outbound transfer",
           "owner_role": "IT lead",
           "owner_user_id": null,
-          "due_at": "2026-11-08T01:26:39+00:00",
+          "due_at": "2026-11-08T01:54:05+00:00",
           "priority": "high",
           "evidence_refs": [
             "EV-1"
@@ -625,9 +625,9 @@
     },
     "error": null,
     "created_by": "Demo Responder",
-    "created_at": "2026-11-07T23:26:39+00:00",
+    "created_at": "2026-11-07T23:54:05+00:00",
     "decided_by": "Demo Responder",
-    "decided_at": "2026-11-07T23:26:39+00:00"
+    "decided_at": "2026-11-07T23:54:05+00:00"
   },
   "notifications": [
     {
@@ -639,9 +639,9 @@
       "delivery_status": "unconfirmed",
       "acknowledged_at": null,
       "provider": "stub",
-      "provider_message_id": "mock-5dda8f0ffed8",
-      "created_at": "2026-11-07T23:26:39+00:00",
-      "updated_at": "2026-11-07T23:26:39+00:00",
+      "provider_message_id": "mock-95b5e8b016b9",
+      "created_at": "2026-11-07T23:54:05+00:00",
+      "updated_at": "2026-11-07T23:54:05+00:00",
       "triage_run_id": 1,
       "requested_by_name": "Demo Responder",
       "is_mock": true
@@ -653,5 +653,5 @@
     "affected_systems": 2,
     "messages": 1
   },
-  "server_time": "2026-11-07T23:26:39+00:00"
+  "server_time": "2026-11-07T23:54:05+00:00"
 }
