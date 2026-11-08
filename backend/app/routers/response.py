@@ -165,6 +165,8 @@ def acknowledge(incident_id: int, notification_id: int, user=Depends(current_use
     n = row(conn.execute("SELECT * FROM notifications WHERE id = ? AND incident_id = ?", (notification_id, incident_id)))
     if not n:
         raise HTTPException(404, "Notification not found")
+    if user["role"] != "admin" and n["recipient_user_id"] != user["id"]:
+        raise HTTPException(403, "Only the recipient or an admin can record acknowledgment")
     if not n["acknowledged_at"]:
         conn.execute("UPDATE notifications SET acknowledged_at=?, updated_at=? WHERE id=?", (now(), now(), n["id"]))
         add_event(conn, incident_id, "alert_acknowledged", f"Alert acknowledged by {n['recipient_label']} "

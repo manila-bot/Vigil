@@ -14,3 +14,8 @@ node_modules/
 frontend/dist/
 .DS_Store
 *.tsbuildinfo
+
+# Local backups and accidental nested checkout
+.env.*
+!.env.example
+Vigil/

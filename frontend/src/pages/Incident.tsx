@@ -280,7 +280,7 @@ function TasksCard({ data, act }: { data: any; act: Function }) {
             <input type="checkbox" aria-label="Mark done" className="mt-1 h-4 w-4" checked={t.status === "done"}
               onChange={(e) => act("PATCH", `/tasks/${t.id}`, { status: e.target.checked ? "done" : "open" })} />
             <div className="flex-1">
-              <div className={t.status === "done" ? "text-faint line-through" : "font-medium"}>{t.title}</div>
+              <div className={t.status === "done" ? "text-faint line-through" : "font-medium"}>#{t.id} · {t.title}</div>
               <div className="mt-0.5 text-xs text-muted">
                 {t.owner_name ?? t.owner_label ?? "Unassigned"} · due {fmtTime(t.due_at)}
                 {t.evidence_refs.length > 0 && <> · evidence {t.evidence_refs.map((r: string) => <a key={r} href={`#${r}`} className="ml-1 font-mono text-accent underline">{r}</a>)}</>}

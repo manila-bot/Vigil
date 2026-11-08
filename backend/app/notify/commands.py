@@ -9,6 +9,7 @@ from dataclasses import dataclass
 class PhotonCommand:
     action: str
     task_id: int | None = None
+    incident_code: str | None = None
 
 
 def parse_command(text: str) -> PhotonCommand | None:
@@ -20,8 +21,9 @@ def parse_command(text: str) -> PhotonCommand | None:
     text = text.strip()
 
     # ACK acknowledges receipt but does not claim a task.
-    if re.fullmatch(r"ACK", text, flags=re.IGNORECASE):
-        return PhotonCommand(action="ack")
+    match = re.fullmatch(r"ACK(?:\s+([A-Z0-9][A-Z0-9-]{0,63}))?", text, flags=re.IGNORECASE)
+    if match:
+        return PhotonCommand(action="ack", incident_code=match.group(1))
 
     # TAKE must identify a numeric task ID.
     match = re.fullmatch(
