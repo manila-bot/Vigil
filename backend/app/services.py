@@ -23,6 +23,38 @@ def get_incident_or_404(conn, incident_id: int) -> dict:
     return inc
 
 
+def claim_it_task(conn, incident_id: int, task_id: int, actor_id: int) -> None:
+    """Record an eligible claim in the caller's transaction, including the audit entry."""
+    updated = conn.execute(
+        """UPDATE tasks SET owner_user_id = ?, status = 'in_progress', updated_at = ?
+           WHERE id = ? AND incident_id = ? AND owner_user_id IS NULL AND status = 'open'
+             AND EXISTS (SELECT 1 FROM it_requests WHERE task_id = tasks.id AND incident_id = tasks.incident_id)
+             AND EXISTS (SELECT 1 FROM users WHERE id = ? AND active = 1
+                         AND lower(trim(team_role)) IN ('it lead', 'it_on_call'))""",
+        (actor_id, now(), task_id, incident_id, actor_id),
+    )
+    if updated.rowcount:
+        add_event(conn, incident_id, "task_claimed", "IT claimed the filing recovery task", actor_id,
+                  {"task_id": task_id})
+        return
+
+    actor = row(conn.execute(
+        "SELECT id FROM users WHERE id = ? AND active = 1 AND lower(trim(team_role)) IN ('it lead', 'it_on_call')",
+        (actor_id,),
+    ))
+    if not actor:
+        raise HTTPException(403, "Only active on-call IT responders can claim this task")
+    task = row(conn.execute(
+        """SELECT t.owner_user_id FROM tasks t JOIN it_requests r ON r.task_id = t.id
+           WHERE t.id = ? AND t.incident_id = ? AND r.incident_id = t.incident_id""",
+        (task_id, incident_id),
+    ))
+    if not task:
+        raise HTTPException(404, "Claimable task not found")
+    if task["owner_user_id"] != actor_id:
+        raise HTTPException(409, "This task is no longer available to claim")
+
+
 def next_incident_code(conn) -> str:
     n = conn.execute("SELECT COALESCE(MAX(id), 0) + 1 FROM incidents").fetchone()[0]
     return f"VIG-{n:04d}"
@@ -151,6 +183,14 @@ def incident_detail(conn, incident_id: int) -> dict:
         n["is_mock"] = n["provider"] == "stub"
 
     open_tasks = [t for t in tasks if t["status"] != "done"]
+    requests = rows(conn.execute(
+        """SELECT r.id, m.matter_code, r.requester_id, r.body, r.created_at, r.task_id,
+                  CASE WHEN t.owner_user_id IS NOT NULL THEN 'claimed'
+                       WHEN r.task_id IS NOT NULL THEN 'task_ready' ELSE 'saved' END AS status
+           FROM it_requests r JOIN matters m ON m.id = r.matter_id
+           LEFT JOIN tasks t ON t.id = r.task_id WHERE r.incident_id = ? ORDER BY r.id""",
+        (incident_id,),
+    ))
     return {
         "incident": inc,
         "headline": headline(scope, matters),
@@ -158,6 +198,7 @@ def incident_detail(conn, incident_id: int) -> dict:
         "scope": scope,
         "evidence": evidence,
         "tasks": tasks,
+        "requests": requests,
         "messages": messages,
         "timeline": timeline,
         "triage": triage_payload(run),

@@ -66,6 +66,7 @@ def detect(events: list) -> list:
         }]
         # Related signals from the same host or core services around the burst (±30 min).
         near = [e for e in events if abs(_ts(e) - w_start) <= timedelta(minutes=30)]
+        renamed_paths = {e["path"] for e in burst}
         for e in near:
             if e["event"] == "file_create" and e["host"] == host and "readme" in e["path"].lower():
                 signals.append({"kind": "ransom_note", "observed_at": e["ts"],
@@ -76,6 +77,16 @@ def detect(events: list) -> list:
                 signals.append({"kind": "outbound_transfer", "observed_at": e["ts"],
                                 "description": f"{mb} MB sent to {e['dest']} — contents unknown, copying not verified",
                                 "detail": {"dest": e["dest"], "bytes": e.get("bytes"), "host": host}})
+            elif (e["event"] == "file_open_failed" and e["host"] == host
+                  and e["path"] in renamed_paths and _ts(e) >= w_start):
+                signals.append({"kind": "file_open_failed", "observed_at": e["ts"],
+                                "description": f"Filing exhibit could not be opened: {e['path'].rsplit('/', 1)[-1]}",
+                                "detail": {"host": host, "path": e["path"], "result": e["result"]}})
+            elif e["event"] == "outbound_telemetry_gap" and e["host"] == host:
+                signals.append({"kind": "outbound_telemetry_gap", "observed_at": e["ts"],
+                                "description": f"Outbound telemetry is missing on {host}; copying remains unknown.",
+                                "detail": {"host": host, "window_start": e["window_start"],
+                                           "window_end": e["window_end"]}})
             elif e["event"] == "service_stopped":
                 signals.append({"kind": "service_disruption", "observed_at": e["ts"],
                                 "description": f"{e.get('service', 'service')} stopped on {e['host']}",

@@ -18,6 +18,9 @@ def client(tmp_path, monkeypatch):
         yield c
 
 
+import json
+
+
 def login(c, email, pw):
     r = c.post("/api/auth/login", json={"email": email, "password": pw})
     assert r.status_code == 200, r.text
@@ -30,6 +33,74 @@ def admin(c):
 
 def responder(c):
     return login(c, "responder@vigil.local", "responder-pass-123")
+
+
+def test_generated_replay_surfaces_exhibit_and_telemetry_gap(client, tmp_path, monkeypatch):
+    from scripts.build_synthetic_attack import attack_replay
+
+    exhibit = "/dms/matters/LIT-2291/Exhibits/Exhibit_A_v02.pdf"
+    background = [{
+        "ts": "2026-11-07T14:50:00Z",
+        "host": "WS-LIT-07",
+        "event": "file_rename",
+        "path": exhibit.replace("_v02", "_v01"),
+        "new_path": exhibit,
+    }]
+    events = attack_replay(background, [f"/dms/matters/LIT-2291/Doc_{n}.pdf" for n in range(46)])
+    (tmp_path / "synthetic_filing_attack_replay.jsonl").write_text(
+        "".join(json.dumps(event) + "\n" for event in events), encoding="utf-8",
+    )
+    monkeypatch.setenv("VIGIL_USE_GENERATED_REPLAY", "1")
+
+    headers = responder(client)
+    response = client.post("/api/demo/simulate", headers=headers)
+    assert response.status_code == 200, response.text
+    result = response.json()
+    evidence = {item["kind"]: item for item in result["incident"]["evidence"]}
+    assert "47 files renamed" in evidence["file_rename_burst"]["description"]
+    assert evidence["file_open_failed"]["detail"]["path"] == exhibit
+    assert evidence["outbound_telemetry_gap"]["certainty"] == "unknown"
+    assert result["incident"]["scope"][0]["copying"] == "unknown"
+    replay = client.post("/api/demo/simulate", headers=headers).json()
+    assert (replay["created"], replay["incident_id"]) == (False, result["incident_id"])
+
+
+def test_it_request_can_only_be_claimed_once(client):
+    lawyer = responder(client)
+    admin_headers = admin(client)
+    it_users = []
+    for index in (1, 2):
+        email = f"it-{index}@vigil.local"
+        response = client.post("/api/users", headers=admin_headers, json={
+            "email": email, "name": f"IT {index}", "role": "responder",
+            "team_role": "IT lead", "password": "demo-it-password",
+        })
+        assert response.status_code == 201, response.text
+        it_users.append((response.json()["id"], login(client, email, "demo-it-password")))
+
+    incident_id = client.post("/api/demo/simulate", headers=lawyer).json()["incident_id"]
+    path = f"/api/incidents/{incident_id}"
+    body = {"matter_code": "LIT-2291", "body": "Please verify a clean copy of the exhibits."}
+    request = client.post(f"{path}/requests", headers=lawyer, json=body).json()
+    duplicate = client.post(f"{path}/requests", headers=lawyer, json=body).json()
+    assert duplicate["request_id"] == request["request_id"]
+    assert duplicate["request_status"] == "task_ready"
+    assert len(duplicate["tasks"]) == 1
+    task_id = request["requests"][0]["task_id"]
+    task_path = f"{path}/tasks/{task_id}"
+    claim_path = f"{task_path}/claim"
+    owner_id, owner_headers = it_users[0]
+    assert client.post(claim_path, headers=lawyer).status_code == 403
+    assert client.patch(task_path, headers=lawyer, json={"owner_user_id": owner_id}).status_code == 409
+    assert client.post(claim_path, headers=owner_headers).status_code == 200
+    assert client.post(claim_path, headers=owner_headers).status_code == 200
+    assert client.post(claim_path, headers=it_users[1][1]).status_code == 409
+
+    incident = client.get(path, headers=lawyer).json()
+    assert incident["requests"][0]["status"] == "claimed"
+    assert incident["tasks"][0]["owner_user_id"] == owner_id
+    assert [event["kind"] for event in incident["timeline"]].count("task_claimed") == 1
+    assert client.post("/api/demo/reset", headers=admin_headers).status_code == 200
 
 
 def test_unauthorized_requests_blocked(client):
