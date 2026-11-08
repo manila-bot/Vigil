@@ -1,8 +1,8 @@
 import { FormEvent, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { AlertTriangle, ArrowUpRight, Clock, Database, FilePlus2, ListChecks, Server, ShieldQuestion, UserRound, Zap } from "lucide-react";
+import { AlertTriangle, ArrowUpRight, Clock, Database, FilePlus2, ListChecks, Server, ShieldQuestion, UserRound } from "lucide-react";
 import { get, post } from "../api/client";
-import { Badge, ErrorBanner, fmtTime, LABELS, responseSteps, Spinner, StaleBanner, StatTile, usePoll } from "../components/ui";
+import { Badge, ErrorBanner, fmtTime, LABELS, Spinner, StaleBanner, StatTile, usePoll } from "../components/ui";
 
 export function timeLeft(iso?: string | null) {
   if (!iso) return null;
@@ -24,33 +24,12 @@ export default function CommandCenter() {
   const nav = useNavigate();
   const { data, error, stale } = usePoll(() => get("/dashboard"));
   const active = data?.incidents?.[0];
-  const { data: detail } = usePoll(() => (active ? get(`/incidents/${active.id}`) : Promise.resolve(null)), 2000, [active?.id]);
-  const [simMsg, setSimMsg] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [actionError, setActionError] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [filter, setFilter] = useState("All");
-
-  async function simulate(fixture: string) {
-    setBusy(true);
-    setSimMsg(null);
-    setActionError(null);
-    try {
-      const r = await post("/demo/simulate", { fixture });
-      if (r.detected) nav(`/incidents/${r.incident_id}`);
-      else setSimMsg(r.message);
-    } catch (e: any) {
-      setActionError(e.message);
-    } finally {
-      setBusy(false);
-    }
-  }
 
   if (!data) return error ? <ErrorBanner message={error} /> : <Spinner />;
   const urgent = data.urgent_deadlines?.[0];
   const systems = Array.from(new Set(data.affected_systems.map((s: any) => s.system))) as string[];
-  const steps = detail ? responseSteps(detail) : [];
-  const nextStep = steps.find((s) => !s.done);
   const activity = data.recent_activity.filter((e: any) => FILTERS[filter](e.kind));
   const today = new Date().toLocaleDateString([], { month: "long", day: "numeric", year: "numeric" });
 
@@ -86,9 +65,6 @@ export default function CommandCenter() {
               <AlertTriangle className="h-4 w-4" /> {data.urgent_deadlines.length} legal deadline{data.urgent_deadlines.length > 1 ? "s" : ""} at risk
             </span>
           )}
-          <button className="btn-ghost" onClick={() => simulate("ransomware_burst")} disabled={busy}>
-            <Zap className="h-4 w-4 text-violet-300" /> Simulate attack
-          </button>
           <button className="btn-primary" onClick={() => setShowCreate(true)}>
             <FilePlus2 className="h-4 w-4" /> Create incident
           </button>
@@ -96,12 +72,10 @@ export default function CommandCenter() {
       </section>
 
       <StaleBanner stale={stale} error={error} />
-      <ErrorBanner message={actionError} />
-      {simMsg && <div className="mb-4 rounded-xl border border-lime/30 bg-lime-soft px-4 py-2 text-sm text-lime">{simMsg}</div>}
       {showCreate && <CreateIncident onClose={() => setShowCreate(false)} onCreated={(id) => nav(`/incidents/${id}`)} />}
 
       {!active ? (
-        <AllClear onSimulate={() => simulate("ransomware_burst")} onNormal={() => simulate("normal_activity")} busy={busy} />
+        <AllClear />
       ) : (
         <section className="mb-6 grid grid-cols-1 gap-5 lg:grid-cols-3">
           {/* 1. What's at risk */}
@@ -143,27 +117,11 @@ export default function CommandCenter() {
               <span className="rounded-full bg-lime-soft px-2.5 py-0.5 text-xs font-medium text-lime">{LABELS.status[active.status]}</span>
             </div>
             <div className="mb-4 text-xs text-faint">{active.code}</div>
-            <ol className="relative ml-1.5 border-l border-dashed border-line">
-              {steps.map((s, i) => {
-                const isNext = s === nextStep;
-                return (
-                  <li key={s.key} className="mb-3 ml-4 last:mb-0">
-                    <span className={`absolute -left-[5px] mt-1.5 h-2.5 w-2.5 rounded-full ${s.done ? "bg-lime" : isNext ? "bg-accent ring-4 ring-accent-soft" : "bg-line"}`} />
-                    <div className="flex items-baseline justify-between gap-2">
-                      <span className={`text-sm ${s.done ? "text-muted" : isNext ? "font-semibold text-ink" : "text-faint"}`}>
-                        {i + 1}. {s.title}
-                      </span>
-                      <span className={`text-[11px] ${s.done ? "text-lime" : isNext ? "text-accent" : "text-faint"}`}>
-                        {s.done ? "Done" : isNext ? "Next" : ""}
-                      </span>
-                    </div>
-                    {isNext && <div className="mt-0.5 text-xs text-muted">{s.hint}</div>}
-                  </li>
-                );
-              })}
-            </ol>
+            <p className="text-sm text-muted">
+              Open the incident to review filing risk, request help, or see who owns recovery.
+            </p>
             <Link to={`/incidents/${active.id}`} className="btn-primary mt-5 w-full">
-              {nextStep ? `Continue: ${nextStep.title}` : "Open incident"}
+              Open active incident
             </Link>
           </div>
 
@@ -200,9 +158,6 @@ export default function CommandCenter() {
               <button key={f} onClick={() => setFilter(f)} className={filter === f ? "pill-active py-1 text-xs" : "pill py-1 text-xs"}>{f}</button>
             ))}
           </div>
-          <button className="ml-auto text-xs text-faint underline hover:text-muted" onClick={() => simulate("normal_activity")} disabled={busy}>
-            Demo: scan normal logs (should raise no alert)
-          </button>
         </div>
         <div className="card overflow-hidden">
           <table className="w-full text-sm">
@@ -228,7 +183,7 @@ export default function CommandCenter() {
   );
 }
 
-function AllClear({ onSimulate, onNormal, busy }: { onSimulate: () => void; onNormal: () => void; busy: boolean }) {
+function AllClear() {
   return (
     <section className="card mb-6 grid grid-cols-1 gap-6 p-8 md:grid-cols-[1.2fr_1fr]">
       <div>
@@ -239,10 +194,6 @@ function AllClear({ onSimulate, onNormal, busy }: { onSimulate: () => void; onNo
           so it keeps working when email and file systems don't. When something happens, it shows what work is at risk,
           what happened to the data, and who's doing what.
         </p>
-        <div className="mt-5 flex flex-wrap gap-3">
-          <button className="btn-primary" onClick={onSimulate} disabled={busy}><Zap className="h-4 w-4" /> Simulate a ransomware attack</button>
-          <button className="btn-ghost" onClick={onNormal} disabled={busy}>Scan normal logs</button>
-        </div>
       </div>
       <ol className="space-y-3 text-sm">
         {["Detect: logs show files being locked", "Assess: see which matters and deadlines are hit",

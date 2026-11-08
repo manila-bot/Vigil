@@ -1,5 +1,5 @@
-// Request IT help -> Nemotron IT task draft. Live API only (POST /api/incidents/{id}/it-requests).
-import { FormEvent, useEffect, useState } from "react";
+// Details and retry for the filing request's Nemotron run.
+import { useEffect, useState } from "react";
 import { LifeBuoy, Loader2, RotateCw } from "lucide-react";
 import { get, post, USE_MOCKS } from "../api/client";
 import { Badge, ErrorBanner, fmtTime } from "./ui";
@@ -33,39 +33,15 @@ type ITRequest = {
   };
 };
 
-export default function ITHelpPanel({ incidentId }: { incidentId: number }) {
-  const [body, setBody] = useState("");
-  const [who, setWho] = useState("");
+export default function ITHelpPanel({ requestId }: { requestId: number }) {
   const [req, setReq] = useState<ITRequest | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Show the latest saved request for this incident (survives reloads and failed triage).
   useEffect(() => {
     if (USE_MOCKS) return;
-    get<ITRequest[]>(`/incidents/${incidentId}/it-requests`).then((rs) => setReq(rs[0] ?? null)).catch(() => {});
-  }, [incidentId]);
-
-  async function submit(e: FormEvent) {
-    e.preventDefault();
-    if (!body.trim()) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const r = await post<ITRequest>(`/incidents/${incidentId}/it-requests`, {
-        body: body.trim(),
-        requester_label: who.trim() || undefined,
-      });
-      setReq(r);
-      setBody("");
-    } catch (err: any) {
-      setError(err.message);
-      // The request may have been saved even if the response failed: reload it.
-      get<ITRequest[]>(`/incidents/${incidentId}/it-requests`).then((rs) => rs[0] && setReq(rs[0])).catch(() => {});
-    } finally {
-      setBusy(false);
-    }
-  }
+    get<ITRequest>(`/it-requests/${requestId}`).then(setReq).catch((err) => setError(err.message));
+  }, [requestId]);
 
   async function retry() {
     if (!req) return;
@@ -80,30 +56,11 @@ export default function ITHelpPanel({ incidentId }: { incidentId: number }) {
     }
   }
 
-  if (USE_MOCKS) {
-    return (
-      <section className="card p-5">
-        <Title />
-        <p className="text-sm text-muted">Request IT help works in live API mode only. Run <code>npm run dev</code> with the backend.</p>
-      </section>
-    );
-  }
-
   const t = req?.triage;
   const d = req?.draft;
   return (
     <section className="card p-5">
       <Title />
-      <form onSubmit={submit} className="space-y-2">
-        <label className="label" htmlFor="it-body">What's broken?</label>
-        <textarea id="it-body" className="input" rows={2} placeholder="e.g. I can't open the exhibits"
-          value={body} onChange={(e) => setBody(e.target.value)} disabled={busy} />
-        <input className="input" placeholder="Your name / team (optional)" value={who}
-          onChange={(e) => setWho(e.target.value)} disabled={busy} />
-        <button className="btn-primary w-full" disabled={busy || !body.trim()}>
-          {busy ? <><Loader2 className="h-4 w-4 animate-spin" /> Nemotron is drafting the IT task… (up to a minute)</> : "Request IT help"}
-        </button>
-      </form>
       <ErrorBanner message={error} />
 
       {req && t && (
@@ -155,11 +112,6 @@ export default function ITHelpPanel({ incidentId }: { incidentId: number }) {
                   <div><span className="text-faint">Tools:</span> {t.tool_calls.map((c) => `${c.tool} (${c.result_summary})`).join(" → ")}</div>
                 </div>
               </details>
-              {t.can_retry && (
-                <button className="mt-3 text-xs text-faint underline hover:text-muted" onClick={retry} disabled={busy}>
-                  Re-run triage (uses the latest incident records)
-                </button>
-              )}
             </div>
           )}
         </div>
@@ -172,7 +124,7 @@ function Title() {
   return (
     <div className="mb-3 flex items-center gap-2">
       <LifeBuoy className="h-5 w-5 text-accent" />
-      <h2 className="font-semibold">Request IT help</h2>
+      <h2 className="font-semibold">Triage details</h2>
     </div>
   );
 }

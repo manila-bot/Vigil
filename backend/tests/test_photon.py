@@ -68,30 +68,39 @@ def test_filing_request_to_signed_phone_claim(setup, monkeypatch):
     from app.notify import photon
 
     c, uid, _, _ = setup
+    sends = []
+
+    def fake_send(phone, body, channel, key):
+        sends.append((phone, body, channel, key))
+        return {"send_status": "accepted", "provider": "photon", "provider_message_id": "test-message"}
+
+    monkeypatch.setattr(photon.config, "PHOTON_ENABLED", True)
+    monkeypatch.setattr(photon, "send", fake_send)
     lawyer = responder(c)
     incident_id = c.post("/api/demo/simulate", headers=lawyer).json()["incident_id"]
     path = f"/api/incidents/{incident_id}"
-    response = c.post(f"{path}/requests", headers=lawyer, json={
+    body = {
         "matter_code": "LIT-2291", "body": "Find a clean copy of the exhibits.",
-    })
+    }
+    response = c.post(f"{path}/requests", headers=lawyer, json=body)
     assert response.status_code == 200, response.text
     request = response.json()["requests"][0]
     assert request["triage_status"] == "drafted"
     assert request["provider"] == "fixture"
     task_id = request["task_id"]
-
-    monkeypatch.setattr(photon, "send", lambda *args: {
-        "send_status": "accepted", "provider": "photon", "provider_message_id": "test-message",
-    })
-    notification = c.post(f"{path}/notify", headers=lawyer, json={
-        "recipient_user_id": uid, "task_id": task_id,
-    })
-    assert notification.status_code == 200, notification.text
-    assert f"TAKE {task_id}" in notification.json()["notifications"][0]["body"]
-    assert send(c, event(f"TAKE {task_id}")).json()["result"] == "claimed"
+    code = response.json()["incident"]["code"]
+    assert request["alert_status"] == "accepted"
+    assert len(sends) == 1 and sends[0][0] == PHONE and f"TAKE {code}" in sends[0][1]
+    assert "LIT-2291" not in sends[0][1]
+    repeat = c.post(f"{path}/requests", headers=lawyer, json=body)
+    assert repeat.json()["request_id"] == request["id"] and len(sends) == 1
+    reply = event(f"TAKE {code}")
+    assert send(c, reply).json()["result"] == "claimed"
+    assert send(c, reply).json()["result"] == "duplicate"
+    assert len(sends) == 2 and "claim was recorded" in sends[1][1]
     snapshot = c.get(path, headers=lawyer).json()
     assert snapshot["requests"][0]["status"] == "claimed"
-    assert snapshot["tasks"][0]["owner_user_id"] == uid
+    assert snapshot["tasks"][0]["id"] == task_id and snapshot["tasks"][0]["owner_user_id"] == uid
 
 
 @pytest.mark.parametrize('text',['hello','PING TEST 2','ACKNOWLEDGE EVERYTHING','TAKE','TAKE abc','TAKE 999999'])

@@ -7,6 +7,7 @@ Integration points (see API_CONTRACT.md "IT help requests"):
 """
 import json
 import logging
+import os
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -14,6 +15,9 @@ from pydantic import BaseModel, Field
 
 from .. import config
 from ..db import _local_tz, get_db, now, row, rows
+from ..notify.sender_auth import find_authorized_it_sender
+from ..routers.response import notify
+from ..schemas import NotifyIn
 from ..security import current_user, require_admin
 from ..services import add_event, get_incident_or_404, next_incident_code
 from . import agent, store
@@ -40,6 +44,7 @@ def _run_triage(conn, rid: int, user: dict) -> dict:
     if not started.rowcount:
         raise HTTPException(409, "Triage is already running for this request")
     conn.commit()  # the saved request stays visible even if the model call below fails
+    task_id = None
     try:
         result = agent.run(conn, incident, req)
         draft, notes = ground(result["model_draft"], result["evidence"], result["matters"], req["body"])
@@ -68,14 +73,31 @@ def _run_triage(conn, rid: int, user: dict) -> dict:
         label = "Nemotron (live)" if result["provider"] == "nemotron" else "FIXTURE (not live AI)"
         add_event(conn, incident["id"], "it_task_drafted", f"IT task drafted by {label}: {draft['title']}",
                   user["id"], {"it_request_id": rid, "provider": result["provider"]})
+        conn.commit()
     except ProviderError as exc:
         conn.rollback()
         log.warning("Nemotron triage failed for request %s: %s | %s", rid, exc.public, exc.detail)
         _fail(conn, rid, incident["id"], user, exc.public)
+        task_id = None
     except Exception:  # never lose the request or leave it 'running'
         conn.rollback()
         log.exception("IT triage crashed for request %s", rid)
         _fail(conn, rid, incident["id"], user, "Triage failed unexpectedly.")
+        task_id = None
+    if task_id is not None and config.PHOTON_ENABLED:
+        recipient = find_authorized_it_sender(conn, os.getenv("PHOTON_TEST_SENDER", ""))
+        if recipient:
+            try:
+                notify(incident["id"], NotifyIn(recipient_user_id=recipient["id"], task_id=task_id), user, conn)
+            except Exception:
+                conn.rollback()
+                log.exception("Could not alert on filing task %s", task_id)
+                add_event(conn, incident["id"], "alert_failed",
+                          "Phone alert unavailable. IT can claim the task in Vigil.", user["id"], {"task_id": task_id})
+        else:
+            add_event(conn, incident["id"], "alert_skipped",
+                      "No eligible on-call phone recipient. IT can claim the task in Vigil.",
+                      user["id"], {"task_id": task_id})
     return store.payload(store.get(conn, rid))
 
 

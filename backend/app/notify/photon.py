@@ -7,6 +7,7 @@ import uuid
 import httpx
 
 from .. import config
+from .sender_auth import normalize_phone
 
 
 def send(phone: str, body: str, channel: str, idempotency_key: str) -> dict:
@@ -29,7 +30,7 @@ def _send_photon(phone, body, channel, idempotency_key):
         raise ValueError("Only iMessage is configured for Photon.")
 
     # Initial test safeguard: allow only the configured phone.
-    if phone != os.environ.get("PHOTON_TEST_SENDER"):
+    if not normalize_phone(phone) or normalize_phone(phone) != normalize_phone(os.environ.get("PHOTON_TEST_SENDER", "")):
         raise ValueError("Recipient is not the authorized test sender.")
 
     project_id = os.environ["PHOTON_PROJECT_ID"]

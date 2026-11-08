@@ -31,6 +31,8 @@ export default function Incident() {
   const inc = data.incident;
 
   const urgent = data.matters_at_risk.find((m: any) => m.deadline_at && m.at_risk);
+  const filingRequest = data.requests?.find((request: any) => request.requester_id === session.user?.id)
+    ?? data.requests?.at(-1);
   const locked = data.scope.filter((s: any) => ["locked", "destroyed"].includes(s.availability)).length;
   const steps = responseSteps(data);
   const next = steps.find((s) => !s.done);
@@ -68,7 +70,9 @@ export default function Incident() {
         <div className="mb-4 flex flex-wrap items-center gap-3">
           <div>
             <div className="text-xs uppercase tracking-wider text-faint">What to do next</div>
-            <div className="text-lg font-semibold">{next ? next.hint : "All response steps are complete."}</div>
+            <div className="text-lg font-semibold">{urgent
+              ? "Coordinate recovery of the filing exhibits"
+              : next ? next.hint : "All response steps are complete."}</div>
           </div>
           <div className="ml-auto flex items-center gap-2">
             <label className="sr-only" htmlFor="status">Status</label>
@@ -77,7 +81,9 @@ export default function Incident() {
             </select>
           </div>
         </div>
-        <Stepper steps={steps} />
+        {!urgent && <Stepper steps={steps} />}
+        {urgent && ["it lead", "it_on_call"].includes(session.user?.team_role?.trim().toLowerCase()) &&
+          <button className="btn-primary" onClick={() => setTab("room")}>Open response room and tasks</button>}
         <div className="mt-4 flex flex-wrap gap-2">
           {data.headline.map((h: any) => <Badge key={h.label} value={h.label} tone={h.tone} />)}
         </div>
@@ -103,8 +109,9 @@ export default function Incident() {
           {tab === "timeline" && <TimelineTab data={data} />}
         </div>
         <div className="space-y-6">
-          <ITHelpPanel incidentId={inc.id} />
-          <TriagePanel data={data} act={act} />
+          {filingRequest?.triage_id && <ITHelpPanel key={`${filingRequest.triage_id}:${filingRequest.triage_status}`}
+            requestId={filingRequest.triage_id} />}
+          {!urgent && <TriagePanel data={data} act={act} />}
         </div>
       </div>
     </div>
@@ -113,7 +120,8 @@ export default function Incident() {
 
 function ITRequestForm({ matter, requests, act, onSaved, closed }: {
   matter: { matter_code: string; deadline_local: string };
-  requests: { id: number; matter_code: string; requester_id: number; status: string; provider?: string; triage_error?: string }[];
+  requests: { id: number; matter_code: string; requester_id: number; status: string; provider?: string;
+    triage_error?: string; owner_name?: string; alert_status?: string }[];
   act: Function;
   onSaved: () => void;
   closed: boolean;
@@ -126,9 +134,12 @@ function ITRequestForm({ matter, requests, act, onSaved, closed }: {
   if (closed && !saved) return null;
   if (saved) return <section className="card mb-6 p-5">
     <p className="font-semibold">IT request #{saved.id} saved</p>
-    <p className="text-sm text-muted">{saved.status === "claimed" ? "Claimed by IT" :
+    <p className="text-sm text-muted">{saved.status === "done" ? "Recovery task done" :
+      saved.status === "claimed" ? `Claimed by IT · ${saved.owner_name ?? "On-call IT"}` :
       saved.status === "task_ready" ? (saved.provider === "nemotron" ? "Waiting for IT" : "Practice task · waiting for IT") :
       saved.triage_error ?? "Waiting for routing"}</p>
+    {saved.alert_status && <p className="text-xs text-muted">Phone alert: {
+      saved.alert_status === "accepted" ? "Accepted by Photon" : saved.alert_status}</p>}
     <button type="button" className="btn-ghost mt-2" onClick={onSaved}>View response room</button>
   </section>;
 
@@ -147,7 +158,7 @@ function ITRequestForm({ matter, requests, act, onSaved, closed }: {
     <p className="text-sm text-muted">{matter.matter_code} · Filing due {matter.deadline_local}</p>
     <textarea id="it-request" className="input w-full" value={body} maxLength={1000} required
       onChange={(event) => setBody(event.target.value)} />
-    <button className="btn-primary" disabled={busy || !body.trim()}>Request IT help</button>
+    <button className="btn-primary" disabled={busy || !body.trim()}>{busy ? "Saving and routing…" : "Request IT help"}</button>
   </form>;
 }
 

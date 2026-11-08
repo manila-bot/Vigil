@@ -153,10 +153,19 @@ def incident_detail(conn, incident_id: int) -> dict:
     open_tasks = [t for t in tasks if t["status"] != "done"]
     requests = rows(conn.execute(
         """SELECT r.id, m.matter_code, r.requester_id, r.body, r.created_at, r.task_id, n.id AS triage_id, n.triage_status, n.triage_error, n.provider,
-                  CASE WHEN t.owner_user_id IS NOT NULL THEN 'claimed'
+                  t.owner_user_id, u.name AS owner_name,
+                  (SELECT CASE WHEN a.provider = 'stub' THEN 'simulated' ELSE a.send_status END
+                   FROM notifications a
+                   WHERE a.incident_id = r.incident_id
+                     AND a.idempotency_key = printf('incident:%d:task:%d:user:%d:imessage',
+                                                   r.incident_id, r.task_id, a.recipient_user_id)
+                   ORDER BY a.id DESC LIMIT 1) AS alert_status,
+                  CASE WHEN t.status = 'done' THEN 'done'
+                       WHEN t.owner_user_id IS NOT NULL THEN 'claimed'
                        WHEN r.task_id IS NOT NULL THEN 'task_ready' ELSE 'saved' END AS status
            FROM it_requests r JOIN matters m ON m.id = r.matter_id
-           LEFT JOIN tasks t ON t.id = r.task_id LEFT JOIN workspace_triage_links l ON l.request_id = r.id
+           LEFT JOIN tasks t ON t.id = r.task_id LEFT JOIN users u ON u.id = t.owner_user_id
+           LEFT JOIN workspace_triage_links l ON l.request_id = r.id
            LEFT JOIN nemotron_it_requests n ON n.id = l.triage_id WHERE r.incident_id = ? ORDER BY r.id""",
         (incident_id,),
     ))

@@ -25,7 +25,11 @@ def parse_command(text: str) -> PhotonCommand | None:
     if match:
         return PhotonCommand(action="ack", incident_code=match.group(1))
 
-    # TAKE must identify a numeric task ID.
+    match = re.fullmatch(r"TAKE\s+(VIG-[0-9]{1,10})", text, flags=re.IGNORECASE)
+    if match:
+        return PhotonCommand(action="take", incident_code=match.group(1).upper())
+
+    # Keep numeric task IDs for incidents with multiple alerted tasks.
     match = re.fullmatch(
         r"TAKE\s+([1-9][0-9]{0,9})",
         text,

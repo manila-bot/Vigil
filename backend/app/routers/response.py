@@ -142,7 +142,8 @@ def notify(incident_id: int, body: NotifyIn, user=Depends(current_user), conn=De
     if body.task_id is not None:
         if inc["status"] == "closed" or task["owner_user_id"] is not None or task["status"] != "open":
             raise HTTPException(409, "This task is no longer waiting for IT")
-        msg = f"VIGIL ALERT {inc['code']}: IT help is needed. Reply TAKE {body.task_id} to claim. Open Vigil for details."
+        msg = (f"VIGIL ALERT {inc['code']}: IT help is needed. Reply TAKE {inc['code']} to claim. "
+               f"If several tasks are open, reply TAKE {body.task_id}. Open Vigil for details.")
     ts = now()
     if existing:  # previous attempt definitely failed -> retry on the same row
         nid = existing["id"]
