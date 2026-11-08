@@ -18,7 +18,10 @@ def parse_command(text: str) -> PhotonCommand | None:
     if not isinstance(text, str):
         return None
 
-    text = text.strip()
+    # Phones add smart dashes, trailing punctuation and odd spacing ("Take VIG 001.", "TAKE VIG–001").
+    text = re.sub(r"[\u2010-\u2015\u2212]", "-", text)
+    text = re.sub(r"\s+", " ", text).strip().rstrip(".!?,;:").strip()
+    text = re.sub(r"\bVIG\s*-?\s*0*([0-9]{1,10})\b", lambda m: f"VIG-{int(m.group(1)):03d}", text, flags=re.IGNORECASE)
 
     # ACK acknowledges receipt but does not claim a task.
     match = re.fullmatch(r"ACK(?:\s+([A-Z0-9][A-Z0-9-]{0,63}))?", text, flags=re.IGNORECASE)

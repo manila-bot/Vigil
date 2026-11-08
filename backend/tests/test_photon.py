@@ -267,3 +267,10 @@ def test_photon_key_is_fresh_after_demo_reset(setup, monkeypatch):
         c.post(f"/api/incidents/{iid}/requests", headers=lawyer, json={"matter_code": "LIT-2291", "body": "Exhibits"})
         time.sleep(1.1)  # timestamps are second-resolution
     assert len(keys) == 2 and keys[0] != keys[1]
+
+
+@pytest.mark.parametrize('text', ['Take VIG-001.', 'take vig 001', 'TAKE VIG–001', 'TAKE VIG-1', ' TAKE  VIG-0001 '])
+def test_phone_formatting_still_parses(text):
+    from app.notify.commands import parse_command
+    cmd = parse_command(text)
+    assert cmd and cmd.action == 'take' and cmd.incident_code == 'VIG-001'
