@@ -1,7 +1,0 @@
-{
-  "detected": false,
-  "fixture": "normal_activity",
-  "events_scanned": 13,
-  "incident_id": null,
-  "message": "No suspicious activity found in this log sample."
-}
