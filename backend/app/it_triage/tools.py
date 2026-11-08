@@ -1,4 +1,4 @@
-"""The two READ-ONLY tools Nemotron may call. The backend executes them and always scopes
+"""The READ-ONLY tools Nemotron may call. The backend executes them and always scopes
 them to the incident of the saved request: any incident_id the model passes is ignored."""
 from datetime import datetime
 
@@ -25,7 +25,19 @@ TOOL_SPECS = [
             "parameters": {"type": "object", "properties": {}, "additionalProperties": False},
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_on_call_roles",
+            "description": "Roles Vigil can notify for this task, with how many active responders can be reached. "
+                           "Pick notify_role from these role names only. No names or phone numbers are returned.",
+            "parameters": {"type": "object", "properties": {}, "additionalProperties": False},
+        },
+    },
 ]
+
+# Server-side allowlist: role name -> which team_role values can claim and receive the alert.
+ON_CALL_ROLES = {"it_on_call": {"label": "On-call IT lead", "team_roles": ("it lead", "it_on_call")}}
 
 
 def format_ct(iso_utc: str) -> str:
@@ -59,7 +71,22 @@ def get_affected_matters(conn, incident_id: int) -> dict:
             "note": "Use deadline_ct exactly as given. If a deadline is 'unknown', say IT must verify it."}
 
 
-IMPLEMENTATIONS = {"get_incident_evidence": get_incident_evidence, "get_affected_matters": get_affected_matters}
+def get_on_call_roles(conn, incident_id: int) -> dict:
+    roles = []
+    for role, spec in ON_CALL_ROLES.items():
+        marks = ",".join("?" * len(spec["team_roles"]))
+        counts = conn.execute(
+            f"""SELECT COUNT(*), SUM(CASE WHEN phone IS NOT NULL AND alert_opt_in = 1 THEN 1 ELSE 0 END) FROM users
+                WHERE active = 1 AND role = 'responder' AND lower(trim(team_role)) IN ({marks})""",
+            spec["team_roles"]).fetchone()
+        roles.append({"role": role, "label": spec["label"], "active_responders": counts[0] or 0,
+                      "reachable_by_phone": counts[1] or 0})
+    return {"incident_id": incident_id, "roles": roles,
+            "note": "notify_role must be one of these role names. Vigil resolves the actual contact server-side."}
+
+
+IMPLEMENTATIONS = {"get_incident_evidence": get_incident_evidence, "get_affected_matters": get_affected_matters,
+                   "get_on_call_roles": get_on_call_roles}
 
 
 def run_tool(conn, incident_id: int, name: str):

@@ -54,7 +54,9 @@ export interface Notification {
 export interface FilingRequest {
   id: number; matter_code: string; requester_id: number; body: string; created_at: string; task_id: number | null;
   triage_id: number | null; triage_status: ITTriageStatus | null; triage_error: string | null; provider: string | null;
-  status: "saved" | "task_ready" | "claimed";
+  owner_user_id?: number | null; owner_name?: string | null; alert_status?: string | null; acknowledged_at?: string | null;
+  task_updated_at?: string | null;
+  status: "saved" | "task_ready" | "acknowledged" | "claimed" | "done";
 }
 export interface IncidentDetail {
   incident: Incident; headline: { label: string; tone: "critical" | "warning" | "ok"; kind: string }[];
@@ -85,7 +87,7 @@ export interface ITRequest {
     header: string; title: string; urgency: string; suggested_team: string; issue: string; affected: string; why_urgent: string; first_action: string;
     deadline: { known: boolean; text: string; due_ct?: string | null; matter_code?: string | null };
     evidence: { ref: string; kind: string; description: string; certainty: string }[];
-    file_copying: { status: string; label: string; basis: string }; unknowns: string[];
+    file_copying: { status: string; label: string; basis: string }; unknowns: string[]; notify_role?: string;
   };
 }
 
@@ -191,7 +193,6 @@ export const api = {
   createIncident: (title: string, summary?: string) => post<IncidentDetail>("/incidents", { title, summary }),
   incident: (id: number | string) => get<IncidentDetail>(inc(id)),
   updateIncident: (id: number | string, body: { status?: IncidentStatus; severity?: Severity }) => patch<IncidentDetail>(inc(id), body),
-  simulate: (fixture: "ransomware_burst" | "normal_activity" = "ransomware_burst") => post<SimulateResult>("/demo/simulate", { fixture }),
   // scope + evidence
   addScope: (id: number | string, body: { system: string; data_category: string; availability: Availability; copying: Copying; certainty: Certainty; matter_code?: string; notes?: string }) =>
     post<IncidentDetail>(`${inc(id)}/scope`, body),
@@ -228,7 +229,7 @@ export const api = {
 // ---------- display labels (enums from the contract) ----------
 export const LABELS = {
   status: { open: "Open", investigating: "Investigating", contained: "Contained", recovering: "Recovering", closed: "Closed" },
-  availability: { available: "Available", degraded: "Degraded", locked: "Locked", destroyed: "Destroyed", unknown: "Unknown" },
+  availability: { available: "Available", degraded: "Degraded", locked: "Inaccessible", destroyed: "Destroyed", unknown: "Unknown" },
   copying: { none_observed: "None observed", suspected: "Suspected", confirmed: "Confirmed", unknown: "Unverified" },
   certainty: { observed: "Observed", confirmed: "Confirmed", unknown: "Unknown" },
   task: { open: "Open", in_progress: "In progress", done: "Done", blocked: "Blocked" },

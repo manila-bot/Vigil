@@ -9,7 +9,7 @@
       "lead_name": "Dana Ortiz (fictional)",
       "lead_role": "Litigation lead",
       "deadline_local_time": "14:00",
-      "deadline_day_offset": 0,
+      "deadline_day_offset": 1,
       "deadline_label": "court filing",
       "path_prefix": "/dms/matters/LIT-2291/"
     },

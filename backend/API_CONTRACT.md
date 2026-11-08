@@ -56,9 +56,10 @@ Example responses for every screen are in `backend/fixtures/api/`. They are gene
 ### Filing help and ownership
 
 - `POST /api/incidents/{id}/requests` accepts `{matter_code, body}` from a signed-in litigation responder. It returns the incident snapshot with `request_id` and `request_status`. Repeating the same incident, matter, and requester returns the existing request.
-- The incident snapshot includes `requests[]` with `id`, `matter_code`, `requester_id`, `body`, `created_at`, `task_id`, `triage_id`, `triage_status`, `triage_error`, `provider`, and `status` (`saved`, `task_ready`, or `claimed`). The saved request runs Nemotron triage (or the labeled fixture provider) and links the resulting task. Use `triage_id` with the triage retry endpoint after a provider failure.
+- The incident snapshot includes `requests[]` with `id`, `matter_code`, `requester_id`, `body`, `created_at`, `task_id`, `triage_id`, `triage_status`, `triage_error`, `provider`, `alert_status`, `owner_name`, `acknowledged_at`, and `status` (`saved`, `task_ready`, `acknowledged`, `claimed`, or `done`). The saved request runs Nemotron triage (or the labeled fixture provider) and links the resulting task. Use `triage_id` with the triage retry endpoint after a provider failure.
 - `POST /api/incidents/{id}/tasks/{task_id}/claim` returns the incident snapshot. An active `IT lead` or `it_on_call` responder can claim a linked task. Repeating the claim as its owner succeeds. A competing claim returns `409`.
-- To alert on a filing task, call `POST /api/incidents/{id}/notify` with `{task_id, recipient_user_id, channel: "imessage"}`. The selected recipient must be an active, consenting IT responder. The signed reply `TAKE <task_id>` and the browser claim both use `app.task_claims.claim_task`. The caller commits or rolls back the task and timeline update together.
+- When Photon is enabled, creating the filing task automatically alerts the active, consenting IT responder whose phone uniquely matches `PHOTON_TEST_SENDER`. The task remains available for browser claims when alerts are disabled or fail. A manual send uses `POST /api/incidents/{id}/notify` with `{task_id, recipient_user_id, channel: "imessage"}` and shares the automatic alert's idempotency key.
+- A signed reply of `TAKE <incident_code>` claims the single available task alerted to that sender. Use `TAKE <task_id>` when several alerted tasks are open. Browser and phone claims share `app.task_claims.claim_task`. After committing a new phone claim, Vigil attempts a generic confirmation text.
 See `fixtures/api/incident_full.json`.
 ```
 incident        {id, code, title, status, severity, category, summary, detected_at, source, created_by_name, created_at, updated_at}
@@ -144,3 +145,11 @@ A lawyer's "Request IT help" is **saved first**, then triaged. If triage fails, 
 **Provider:** `NEMOTRON_PROVIDER=nvidia` (NVIDIA API catalog, `NVIDIA_API_KEY`) or `openrouter` (`https://openrouter.ai/api/v1`, model `nvidia/nemotron-3-super-120b-a12b:free`, `OPENROUTER_API_KEY`). Each key is sent only to its own provider. `triage.model` reads like `"openrouter · nvidia/nemotron-3-super-120b-a12b:free"`.
 
 **Handoff to approval + Photon (team integration):** `app/it_triage/draft.py: task_fields(draft)` maps an approved draft to the existing `POST /incidents/{id}/tasks` body. `as_text_card(draft)` gives a plain-text version.
+
+## Runbook alignment (immediate branch)
+
+- Incident codes are `VIG-001` style. `/api/demo/simulate` also accepts the runbook fixture names `rename_burst` and `benign`. `GET /api/me` is an alias of `/api/auth/me`.
+- Nemotron (NVIDIA hosted, `nvidia/nemotron-3.5-super-vl-120b-a12b` by default) calls `get_incident_evidence`, `get_affected_matters` and `get_on_call_roles`. The draft's `notify_role` must be an allowlisted role (`it_on_call`); anything else is replaced and noted in `triage.validation`.
+- The filing alert text is `Vigil: An urgent recovery task is ready. Reply TAKE VIG-001 to claim it or ACK VIG-001 if you saw it. Open Vigil for details.` `TAKE` claims and texts back a claim confirmation; `ACK` records receipt, keeps the task unowned, and texts back a receipt.
+- Photon's `Idempotency-Key` adds the send-attempt time to Vigil's key, so a demo reset (which restarts ids) never reuses a key Photon has already seen.
+- `NVIDIA_ENABLED` / `PHOTON_ENABLED` work as aliases for `VIGIL_NEMOTRON_ENABLED` / `VIGIL_PHOTON_ENABLED`.

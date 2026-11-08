@@ -43,6 +43,15 @@ cd frontend-new && npm install && npm run dev      # http://localhost:8080
 
 In VS Code, **Terminal → Run Task… → Vigil: run app** starts both.
 
+Demo controls live in the backend, not the UI:
+
+```sh
+cd backend
+.venv/bin/python -m scripts.simulate_attack reset    # clean slate (keeps users and matters)
+.venv/bin/python -m scripts.simulate_attack          # ransomware detected -> VIG-001 appears on screen
+.venv/bin/python -m scripts.simulate_attack normal   # a normal day -> nothing opens
+```
+
 - `npm run dev:mock` runs the fictional sample scenario with no backend (`VITE_USE_MOCKS=1`).
   The header says "Sample mode · fictional data" whenever it is on.
 - `VIGIL_API_TARGET=http://127.0.0.1:8001 npm run dev` points the proxy at a backend on another port.
@@ -56,7 +65,7 @@ In VS Code, **Terminal → Run Task… → Vigil: run app** starts both.
 |---|---|
 | Sign in / out | `POST /auth/login`, `POST /auth/logout` (token in sessionStorage) |
 | Command Center | `GET /dashboard` (polled every 2 s), `GET /system/status` |
-| Simulate attack | `POST /demo/simulate`, then opens the returned `incident_id` |
+| Attack detection | Backend only: `cd backend && .venv/bin/python -m scripts.simulate_attack` (or `POST /api/demo/simulate`). The Command Center picks it up within 2 s; there is no button in the app |
 | Incidents / Report incident | `GET /incidents`, `POST /incidents` |
 | Incident workspace | `GET /incidents/{id}` (polled every 2 s); mutations replace it with their response |
 | Status | `PATCH /incidents/{id}` |

@@ -6,18 +6,21 @@ import hmac
 import os
 import time
 import json
+import logging
 
 from ..db import connect, now
 from ..services import add_event
 from ..task_claims import claim_task
+from ..notify import photon
 from ..notify.commands import parse_command
 from ..notify.sender_auth import find_authorized_it_sender, normalize_phone
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 
 router = APIRouter(prefix="/webhooks", tags=["photon"])
 
 MAX_WEBHOOK_AGE_SECONDS = 300
+log = logging.getLogger(__name__)
 
 
 def verify_photon_signature(
@@ -154,12 +157,24 @@ def apply_command(conn, user, command):
                   "Responder acknowledged alert via signed Photon reply", user["id"],
                   {"notification_ids": [n["id"] for n in pending]})
         return "acknowledged"
-    task = conn.execute("SELECT incident_id FROM tasks WHERE id=?", (command.task_id,)).fetchone()
+    task_id = command.task_id
+    if command.incident_code:
+        candidates = conn.execute(
+            """SELECT t.id FROM tasks t JOIN incidents i ON i.id = t.incident_id
+               WHERE i.code = ? COLLATE NOCASE AND t.owner_user_id IS NULL AND t.status = 'open'""",
+            (command.incident_code,),
+        )
+        eligible = {alert["authorized_task_id"] for alert in alerts}
+        ids = [task["id"] for task in candidates if task["id"] in eligible]
+        if len(ids) != 1:
+            return "ambiguous_task" if ids else "task_unavailable"
+        task_id = ids[0]
+    task = conn.execute("SELECT incident_id FROM tasks WHERE id=?", (task_id,)).fetchone()
     if not task or not any(n["incident_id"] == task["incident_id"] and
-                           n["authorized_task_id"] in (None, command.task_id) for n in alerts):
+                           n["authorized_task_id"] in (None, task_id) for n in alerts):
         return "task_not_authorized"
     try:
-        claimed = claim_task(conn, task["incident_id"], command.task_id, user)
+        claimed = claim_task(conn, task["incident_id"], task_id, user)
     except HTTPException as exc:
         if exc.status_code not in (403, 404, 409):
             raise
@@ -167,8 +182,21 @@ def apply_command(conn, user, command):
     return "claimed" if claimed else "task_unavailable"
 
 
+CLAIM_CONFIRMATION = "Vigil: Your claim was recorded. You own this task. Open Vigil to view it."
+ACK_CONFIRMATION = "Vigil: Receipt recorded. The task is still unclaimed. Reply TAKE with the incident code to claim it."
+
+
+def confirm_claim(phone: str, event_id: str, text: str = CLAIM_CONFIRMATION) -> None:
+    try:
+        result = photon.send(phone, text, "imessage", f"vigil-reply:{event_id}")
+        if result["send_status"] != "accepted":
+            log.warning("Photon claim confirmation status: %s", result["send_status"])
+    except Exception:
+        log.exception("Could not send Photon claim confirmation")
+
+
 @router.post("/photon")
-async def receive_photon_webhook(request: Request):
+async def receive_photon_webhook(request: Request, background_tasks: BackgroundTasks):
     secret = os.getenv("PHOTON_WEBHOOK_SECRET")
     if not secret:
         raise HTTPException(503, "Photon webhook signing secret not configured")
@@ -209,6 +237,9 @@ async def receive_photon_webhook(request: Request):
         conn.execute("UPDATE photon_webhook_events SET status='processed',processed_at=?,error=? WHERE event_id=?",
                      (now(), result, event_id))
         conn.commit()
+        if result in ("claimed", "acknowledged") and photon.config.PHOTON_ENABLED:
+            background_tasks.add_task(confirm_claim, user["phone"], event_id,
+                                      CLAIM_CONFIRMATION if result == "claimed" else ACK_CONFIRMATION)
         return {"ok": True, "result": result}
     except Exception:
         conn.rollback()
