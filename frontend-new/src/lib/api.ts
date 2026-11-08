@@ -167,8 +167,9 @@ async function req<T>(method: string, path: string, body?: unknown): Promise<T> 
     session.clear();
     if (typeof window !== "undefined" && window.location.pathname !== "/login") window.location.assign("/login");
   }
-  // A dev proxy with no backend behind it answers 5xx without a FastAPI body.
-  if (res.status >= 500 && data === null) throw new ApiError(res.status, "Can't reach the Vigil server. Check that the backend is running on port 8000.");
+  // The dev proxy answers 502-504 when no backend is listening; a bare 500 is an unhandled server error.
+  if ([502, 503, 504].includes(res.status) && data === null) throw new ApiError(res.status, "Can't reach the Vigil server. Check that the backend is running on port 8000.");
+  if (res.status >= 500 && data === null) throw new ApiError(res.status, `The Vigil server hit an error (${res.status}). Check the backend terminal for details.`);
   if (!res.ok) throw new ApiError(res.status, errorDetail(res.status, data));
   return data as T;
 }
