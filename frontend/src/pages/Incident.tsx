@@ -2,7 +2,7 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, Bot, Check, CheckCircle2, Clock, ListChecks, Loader2, Lock, MessageSquare, Phone, Send, ShieldQuestion, Wrench, X } from "lucide-react";
 import { timeLeft } from "./CommandCenter";
-import { get, patch, post, session } from "../api/client";
+import { get, patch, post, session, USE_MOCKS } from "../api/client";
 import { Badge, ErrorBanner, fmtTime, LABELS, responseSteps, SimulatedTag, Spinner, StaleBanner, StatTile, Stepper, usePoll } from "../components/ui";
 
 type Tab = "scope" | "room" | "timeline";
@@ -83,6 +83,9 @@ export default function Incident() {
       </section>
       <StaleBanner stale={stale} error={error} />
       <ErrorBanner message={actionError} />
+      {!USE_MOCKS && urgent && ["litigation lead", "lawyer"].includes(session.user?.team_role?.trim().toLowerCase()) &&
+        <ITRequestForm key={`${id}:${urgent.matter_code}`} matter={urgent} requests={data.requests ?? []} act={act}
+          onSaved={() => setTab("room")} closed={inc.status === "closed"} />}
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <div className="xl:col-span-2">
@@ -102,6 +105,46 @@ export default function Incident() {
       </div>
     </div>
   );
+}
+
+function ITRequestForm({ matter, requests, act, onSaved, closed }: {
+  matter: { matter_code: string; deadline_local: string };
+  requests: { id: number; matter_code: string; requester_id: number; status: string }[];
+  act: Function;
+  onSaved: () => void;
+  closed: boolean;
+}) {
+  const [body, setBody] = useState(`Please find and verify a clean copy of the ${matter.matter_code} filing exhibits.`);
+  const [busy, setBusy] = useState(false);
+  const saved = requests.find((request) =>
+    request.matter_code === matter.matter_code && request.requester_id === session.user?.id);
+
+  if (closed && !saved) return null;
+  if (saved) return <section className="card mb-6 p-5">
+    <p className="font-semibold">IT request #{saved.id} saved</p>
+    <p className="text-sm text-muted">{saved.status === "claimed" ? "Claimed by IT" :
+      saved.status === "task_ready" ? "Practice task · waiting for IT" : "Waiting for routing"}</p>
+    <button type="button" className="btn-ghost mt-2" onClick={onSaved}>View response room</button>
+  </section>;
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    setBusy(true);
+    try {
+      if (await act("POST", "/requests", { matter_code: matter.matter_code, body })) onSaved();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return <form className="card mb-6 space-y-3 p-5" onSubmit={submit}>
+    <label className="block font-semibold" htmlFor="it-request">Request IT help</label>
+    <p className="text-sm text-muted">{matter.matter_code} · Filing due {matter.deadline_local}</p>
+    <textarea id="it-request" className="input w-full" value={body} maxLength={1000} required
+      onChange={(event) => setBody(event.target.value)} />
+    <button className="btn-primary" disabled={busy || !body.trim()}>Request IT help</button>
+    <p className="text-xs text-muted">Creates a local practice task. Phone delivery is pending integration.</p>
+  </form>;
 }
 
 // ---------------- Scope ----------------
@@ -270,14 +313,30 @@ function RoomTab({ data, act }: { data: any; act: Function }) {
 }
 
 function TasksCard({ data, act }: { data: any; act: Function }) {
+  const [claiming, setClaiming] = useState<number | null>(null);
+  const user = session.user;
+  const canClaim = ["it lead", "it_on_call"].includes(user?.team_role?.trim().toLowerCase());
+
+  async function claim(taskId: number) {
+    setClaiming(taskId);
+    try {
+      await act("POST", `/tasks/${taskId}/claim`);
+    } finally {
+      setClaiming(null);
+    }
+  }
+
   return (
     <section className="card">
       <h2 className="border-b border-line px-5 py-3 font-semibold">Tasks ({data.counts.open_tasks} open)</h2>
       <ul className="divide-y divide-line">
         {data.tasks.length === 0 && <li className="p-5 text-sm text-muted">No tasks yet. Run AI triage or add one.</li>}
-        {data.tasks.map((t: any) => (
+        {data.tasks.map((t: any) => {
+          const requestTask = data.requests?.some((request: { task_id: number }) => request.task_id === t.id);
+          return (
           <li key={t.id} className="flex items-start gap-3 px-5 py-3 text-sm">
             <input type="checkbox" aria-label="Mark done" className="mt-1 h-4 w-4" checked={t.status === "done"}
+              disabled={requestTask && t.owner_user_id !== user?.id}
               onChange={(e) => act("PATCH", `/tasks/${t.id}`, { status: e.target.checked ? "done" : "open" })} />
             <div className="flex-1">
               <div className={t.status === "done" ? "text-faint line-through" : "font-medium"}>{t.title}</div>
@@ -285,12 +344,17 @@ function TasksCard({ data, act }: { data: any; act: Function }) {
                 {t.owner_name ?? t.owner_label ?? "Unassigned"} · due {fmtTime(t.due_at)}
                 {t.evidence_refs.length > 0 && <> · evidence {t.evidence_refs.map((r: string) => <a key={r} href={`#${r}`} className="ml-1 font-mono text-accent underline">{r}</a>)}</>}
                 {t.source === "ai" && <> · AI-drafted, approved by {t.approved_by_name}</>}
+                {requestTask && <> · {t.owner_user_id ? "Claimed by IT" : "Waiting for IT"}</>}
               </div>
             </div>
             <Badge kind="severity" value={t.priority} />
             <Badge kind="task" value={t.status} />
+            {requestTask && canClaim && !t.owner_user_id && t.status === "open" &&
+              <button type="button" className="btn-ghost" disabled={claiming !== null}
+                onClick={() => claim(t.id)}>Claim task</button>}
           </li>
-        ))}
+          );
+        })}
       </ul>
     </section>
   );

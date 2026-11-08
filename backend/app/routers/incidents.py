@@ -5,9 +5,9 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from ..db import get_db, now, row, rows
 from ..schemas import (EvidenceCreate, IncidentCreate, IncidentUpdate, MessageCreate, ScopeCreate, ScopeUpdate,
-                       TaskCreate, TaskUpdate)
+                       ITRequestCreate, TaskCreate, TaskUpdate)
 from ..security import current_user
-from ..services import add_event, get_incident_or_404, incident_detail, local_time_label, next_incident_code
+from ..services import add_event, claim_it_task, get_incident_or_404, incident_detail, local_time_label, next_incident_code
 
 router = APIRouter(tags=["incidents"])
 
@@ -179,6 +179,64 @@ def list_messages(incident_id: int, after_id: int = 0, user=Depends(current_user
 
 # ---- Tasks ----
 
+@router.post("/incidents/{incident_id}/requests")
+def request_it_help(incident_id: int, body: ITRequestCreate, user=Depends(current_user), conn=Depends(get_db)):
+    if (user["team_role"] or "").strip().lower() not in {"litigation lead", "lawyer"}:
+        raise HTTPException(403, "Only litigation responders can request filing help")
+    message = body.body.strip()
+    if not message:
+        raise HTTPException(422, "Enter a request for IT")
+
+    conn.execute("BEGIN IMMEDIATE")
+    incident = get_incident_or_404(conn, incident_id)
+    matter = row(conn.execute(
+        """SELECT m.id, m.deadline_at FROM matters m WHERE m.matter_code = ?
+           AND EXISTS (SELECT 1 FROM scope_items WHERE incident_id = ? AND matter_id = m.id)""",
+        (body.matter_code, incident_id),
+    ))
+    if not matter or not matter["deadline_at"]:
+        raise HTTPException(422, "Choose a filing linked to this incident")
+    request = row(conn.execute(
+        "SELECT id FROM it_requests WHERE incident_id = ? AND matter_id = ? AND requester_id = ?",
+        (incident_id, matter["id"], user["id"]),
+    ))
+    if request:
+        request_id = request["id"]
+    else:
+        if incident["status"] == "closed":
+            raise HTTPException(409, "This incident is closed")
+        ts = now()
+        request_id = conn.execute(
+            "INSERT INTO it_requests (incident_id, matter_id, requester_id, body, created_at) VALUES (?,?,?,?,?)",
+            (incident_id, matter["id"], user["id"], message, ts),
+        ).lastrowid
+        evidence_refs = [e["ref"] for e in rows(conn.execute(
+            """SELECT ref FROM evidence WHERE incident_id = ? AND kind = 'file_open_failed'
+               AND json_extract(detail_json, '$.path') LIKE ? ORDER BY id""",
+            (incident_id, f"/dms/matters/{body.matter_code}/%"),
+        ))]
+        # Local practice handoff. The integrated router will consume the saved request ID.
+        task_id = conn.execute(
+            """INSERT INTO tasks (incident_id, title, priority, due_at, evidence_refs_json, created_by, created_at, updated_at)
+               VALUES (?, ?, 'critical', ?, ?, ?, ?, ?)""",
+            (incident_id, f"Find and verify a clean copy of the {body.matter_code} filing exhibits",
+             matter["deadline_at"], json.dumps(evidence_refs), user["id"], ts, ts),
+        ).lastrowid
+        conn.execute("UPDATE it_requests SET task_id = ? WHERE id = ?", (task_id, request_id))
+        add_event(conn, incident_id, "it_help_requested", f"IT help requested for {body.matter_code}", user["id"],
+                  {"request_id": request_id, "task_id": task_id, "routing": "practice"})
+
+    detail = incident_detail(conn, incident_id)
+    status = next(item["status"] for item in detail["requests"] if item["id"] == request_id)
+    return {**detail, "request_id": request_id, "request_status": status}
+
+
+@router.post("/incidents/{incident_id}/tasks/{task_id}/claim")
+def claim_task(incident_id: int, task_id: int, user=Depends(current_user), conn=Depends(get_db)):
+    claim_it_task(conn, incident_id, task_id, user["id"])
+    return incident_detail(conn, incident_id)
+
+
 def _check_owner(conn, owner_user_id):
     if owner_user_id is not None and not row(conn.execute(
             "SELECT id FROM users WHERE id = ? AND active = 1", (owner_user_id,))):
@@ -203,10 +261,16 @@ def create_task(incident_id: int, body: TaskCreate, user=Depends(current_user), 
 @router.patch("/incidents/{incident_id}/tasks/{task_id}")
 def update_task(incident_id: int, task_id: int, body: TaskUpdate, user=Depends(current_user),
                 conn=Depends(get_db)):
+    conn.execute("BEGIN IMMEDIATE")
     task = row(conn.execute("SELECT * FROM tasks WHERE id = ? AND incident_id = ?", (task_id, incident_id)))
     if not task:
         raise HTTPException(404, "Task not found")
     changes = {k: v for k, v in body.model_dump(exclude_unset=True).items() if v != task[k]}
+    if changes and conn.execute("SELECT 1 FROM it_requests WHERE task_id = ?", (task_id,)).fetchone():
+        if {"owner_user_id", "owner_label"} & changes.keys():
+            raise HTTPException(409, "Use the claim route to assign an IT request task")
+        if "status" in changes and task["owner_user_id"] != user["id"]:
+            raise HTTPException(403, "Only the claimed owner can change this task's status")
     if "owner_user_id" in changes:
         _check_owner(conn, changes["owner_user_id"])
     if changes:

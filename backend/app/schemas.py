@@ -134,5 +134,10 @@ class NotifyIn(BaseModel):
     channel: Literal["imessage", "sms"] = "imessage"
 
 
+class ITRequestCreate(BaseModel):
+    matter_code: str = Field(min_length=1, max_length=100)
+    body: str = Field(min_length=1, max_length=1000)
+
+
 class SimulateIn(BaseModel):
     fixture: Literal["ransomware_burst", "normal_activity"] = "ransomware_burst"

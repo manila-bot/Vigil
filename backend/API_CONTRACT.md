@@ -52,6 +52,13 @@ Example responses for every screen are in `backend/fixtures/api/`. They are gene
 - `simulate` doesn't create a duplicate incident if it's clicked twice.
 
 ## Incident payload (`GET /api/incidents/{id}`)
+
+### Filing help and ownership
+
+- `POST /api/incidents/{id}/requests` accepts `{matter_code, body}` from a signed-in litigation responder. It returns the incident snapshot with `request_id` and `request_status`. Repeating the same incident, matter, and requester returns the existing request.
+- The incident snapshot includes `requests[]` with `id`, `matter_code`, `requester_id`, `body`, `created_at`, `task_id`, and `status` (`saved`, `task_ready`, or `claimed`). The current local flow creates a practice task. For integration, route the committed request ID to Nemotron and link its validated task through `it_requests.task_id` before Photon sends.
+- `POST /api/incidents/{id}/tasks/{task_id}/claim` returns the incident snapshot. An active `IT lead` or `it_on_call` responder can claim a linked task. Repeating the claim as its owner succeeds. A competing claim returns `409`.
+- Photon should call `app.services.claim_it_task(conn, incident_id, task_id, actor_id)` with the verified sender's mapped Vigil user ID. The caller commits or rolls back the task and timeline update together.
 See `fixtures/api/incident_full.json`.
 ```
 incident        {id, code, title, status, severity, category, summary, detected_at, source, created_by_name, created_at, updated_at}

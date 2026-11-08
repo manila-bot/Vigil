@@ -114,6 +114,16 @@ CREATE TABLE IF NOT EXISTS tasks (
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS it_requests (
+    id INTEGER PRIMARY KEY,
+    incident_id INTEGER NOT NULL REFERENCES incidents(id),
+    matter_id INTEGER NOT NULL REFERENCES matters(id),
+    requester_id INTEGER NOT NULL REFERENCES users(id),
+    body TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    task_id INTEGER UNIQUE REFERENCES tasks(id),
+    UNIQUE (incident_id, matter_id, requester_id)
+);
 CREATE TABLE IF NOT EXISTS messages (
     id INTEGER PRIMARY KEY,
     incident_id INTEGER NOT NULL REFERENCES incidents(id),
