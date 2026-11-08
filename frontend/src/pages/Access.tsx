@@ -46,12 +46,12 @@ export default function Access() {
   return (
     <div className="mx-auto max-w-5xl">
       <h1 className="mb-1 text-2xl font-bold text-ink">Access</h1>
-      <p className="mb-6 text-sm text-muted">Add responders to Vigil and remove them. These accounts are separate from firm accounts.</p>
+      <p className="mb-6 text-sm text-muted">Add team members to Vigil and remove them. These accounts are separate from firm accounts.</p>
       <ErrorBanner message={error} />
       {notice && <div className="mb-4 rounded-xl border border-lime/30 bg-lime-soft px-4 py-2 text-sm text-lime">{notice}</div>}
 
       <form onSubmit={add} className="card mb-6 grid grid-cols-1 gap-3 p-5 md:grid-cols-3">
-        <h2 className="col-span-full flex items-center gap-2 font-semibold"><UserPlus className="h-4 w-4" /> Add a responder</h2>
+        <h2 className="col-span-full flex items-center gap-2 font-semibold"><UserPlus className="h-4 w-4" /> Add a team member</h2>
         <div><label className="label">Name</label><input className="input" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
         <div><label className="label">Email</label><input className="input" type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
         <div><label className="label">Team role</label><input className="input" placeholder="e.g. IT lead" value={form.team_role} onChange={(e) => setForm({ ...form, team_role: e.target.value })} /></div>
@@ -59,7 +59,7 @@ export default function Access() {
         <div>
           <label className="label">Access level</label>
           <select className="input" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
-            <option value="responder">Responder</option>
+            <option value="responder">Team member</option>
             <option value="admin">Admin</option>
           </select>
         </div>
@@ -68,7 +68,7 @@ export default function Access() {
           <input type="checkbox" checked={form.alert_opt_in} onChange={(e) => setForm({ ...form, alert_opt_in: e.target.checked })} />
           This person agreed to receive incident alerts on their phone
         </label>
-        <div className="col-span-full"><button className="btn-primary">Add responder</button></div>
+        <div className="col-span-full"><button className="btn-primary">Add team member</button></div>
       </form>
 
       <section className="card overflow-x-auto">
@@ -80,7 +80,7 @@ export default function Access() {
             {users.map((u) => (
               <tr key={u.id} className={u.active ? "" : "opacity-60"}>
                 <td className="px-4 py-3"><div className="font-medium">{u.name}</div><div className="text-xs text-muted">{u.email}</div></td>
-                <td className="px-4 py-3">{u.team_role ?? "—"} <span className="text-xs text-muted">({u.role})</span></td>
+                <td className="px-4 py-3">{u.team_role ?? "—"} <span className="text-xs text-muted">({u.role === "admin" ? "Admin" : "Team member"})</span></td>
                 <td className="px-4 py-3">{u.alert_opt_in ? <Badge value={`Yes · ${u.phone_masked ?? "no phone"}`} tone="ok" /> : <Badge value="No" tone="neutral" />}</td>
                 <td className="px-4 py-3"><Badge value={u.active ? "Active" : "Deactivated"} tone={u.active ? "ok" : "neutral"} /></td>
                 <td className="px-4 py-3 text-right">

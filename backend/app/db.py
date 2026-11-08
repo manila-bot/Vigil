@@ -225,7 +225,7 @@ def load_matters(conn: sqlite3.Connection) -> None:
 
 
 def _bootstrap_users(conn: sqlite3.Connection) -> None:
-    from .security import hash_password
+    from .security import ADMIN, RESPONDER, hash_password
 
     if conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]:
         return
@@ -233,7 +233,7 @@ def _bootstrap_users(conn: sqlite3.Connection) -> None:
     admin_pw = config.ADMIN_PASSWORD or secrets.token_urlsafe(12)
     conn.execute(
         "INSERT INTO users (email, name, role, team_role, password_hash, created_at) VALUES (?,?,?,?,?,?)",
-        (config.ADMIN_EMAIL, "Vigil Admin", "admin", "Incident commander", hash_password(admin_pw), now()),
+        (config.ADMIN_EMAIL, "Vigil Admin", ADMIN, "Incident commander", hash_password(admin_pw), now()),
     )
     if not config.ADMIN_PASSWORD:
         lines.append(f"admin      {config.ADMIN_EMAIL}  {admin_pw}")
@@ -242,7 +242,7 @@ def _bootstrap_users(conn: sqlite3.Connection) -> None:
         conn.execute(
             "INSERT INTO users (email, name, role, team_role, password_hash, created_by, created_at)"
             " VALUES (?,?,?,?,?,1,?)",
-            (config.RESPONDER_EMAIL, "Demo Responder", "responder", "Litigation lead",
+            (config.RESPONDER_EMAIL, "Demo Responder", RESPONDER, "Litigation lead",
              hash_password(resp_pw), now()),
         )
         if not config.RESPONDER_PASSWORD:
