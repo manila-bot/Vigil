@@ -7,7 +7,7 @@ import json
 from ..db import now, row
 
 DDL = """
-CREATE TABLE IF NOT EXISTS it_requests (
+CREATE TABLE IF NOT EXISTS nemotron_it_requests (
     id INTEGER PRIMARY KEY,
     incident_id INTEGER NOT NULL REFERENCES incidents(id),
     body TEXT NOT NULL,                       -- the lawyer's words, stored as typed
@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS it_requests (
     validation_json TEXT NOT NULL DEFAULT '[]',
     updated_at TEXT NOT NULL
 );
-CREATE INDEX IF NOT EXISTS ix_it_requests_incident ON it_requests(incident_id, id);
+CREATE INDEX IF NOT EXISTS ix_nemotron_it_requests_incident ON nemotron_it_requests(incident_id, id);
 """
 
 
@@ -36,12 +36,12 @@ def ensure_schema(conn) -> None:
 def create(conn, incident_id: int, body: str, requester_label, user_id) -> int:
     ts = now()
     return conn.execute(
-        """INSERT INTO it_requests (incident_id, body, requester_label, submitted_by, created_at, updated_at)
+        """INSERT INTO nemotron_it_requests (incident_id, body, requester_label, submitted_by, created_at, updated_at)
            VALUES (?,?,?,?,?,?)""", (incident_id, body, requester_label, user_id, ts, ts)).lastrowid
 
 
 def get(conn, request_id: int):
-    return row(conn.execute("SELECT * FROM it_requests WHERE id = ?", (request_id,)))
+    return row(conn.execute("SELECT * FROM nemotron_it_requests WHERE id = ?", (request_id,)))
 
 
 def payload(r: dict) -> dict:

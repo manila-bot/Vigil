@@ -33,14 +33,14 @@ class ITRequestIn(BaseModel):
 def _run_triage(conn, rid: int, user: dict) -> dict:
     req = store.get(conn, rid)
     incident = get_incident_or_404(conn, req["incident_id"])
-    conn.execute("UPDATE it_requests SET triage_status='running', triage_error=NULL, attempts=attempts+1, updated_at=? "
+    conn.execute("UPDATE nemotron_it_requests SET triage_status='running', triage_error=NULL, attempts=attempts+1, updated_at=? "
                  "WHERE id=?", (now(), rid))
     conn.commit()  # the saved request stays visible even if the model call below fails
     try:
         result = agent.run(conn, incident, req)
         draft, notes = ground(result["model_draft"], result["evidence"], result["matters"], req["body"])
         conn.execute(
-            """UPDATE it_requests SET triage_status='drafted', provider=?, model=?, tool_calls_json=?, draft_json=?,
+            """UPDATE nemotron_it_requests SET triage_status='drafted', provider=?, model=?, tool_calls_json=?, draft_json=?,
                       validation_json=?, updated_at=? WHERE id=?""",
             (result["provider"], result["model"], json.dumps(result["tool_calls"], default=str), json.dumps(draft),
              json.dumps(notes), now(), rid))
@@ -57,7 +57,7 @@ def _run_triage(conn, rid: int, user: dict) -> dict:
 
 
 def _fail(conn, rid, incident_id, user, message):
-    conn.execute("UPDATE it_requests SET triage_status='failed', triage_error=?, updated_at=? WHERE id=?",
+    conn.execute("UPDATE nemotron_it_requests SET triage_status='failed', triage_error=?, updated_at=? WHERE id=?",
                  (f"{message} The request is saved. You can retry triage.", now(), rid))
     add_event(conn, incident_id, "it_triage_failed", f"IT triage failed ({message}). Request saved; retry available.",
               user["id"], {"it_request_id": rid})
@@ -98,7 +98,7 @@ def get_request(request_id: int, user=Depends(current_user), conn=Depends(get_db
 def list_requests(incident_id: int, user=Depends(current_user), conn=Depends(get_db)):
     get_incident_or_404(conn, incident_id)
     return [store.payload(r) for r in rows(conn.execute(
-        "SELECT * FROM it_requests WHERE incident_id = ? ORDER BY id DESC", (incident_id,)))]
+        "SELECT * FROM nemotron_it_requests WHERE incident_id = ? ORDER BY id DESC", (incident_id,)))]
 
 
 # ---------------- demo fixture (fictional data only) ----------------
