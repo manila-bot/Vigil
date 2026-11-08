@@ -278,10 +278,27 @@ def _bootstrap_users(conn: sqlite3.Connection) -> None:
         print(f"[vigil] First-run accounts created. Credentials written to {cred_file}")
 
 
+def _migrate_legacy_it_requests(conn: sqlite3.Connection) -> None:
+    """Older databases used `it_requests` for Nemotron drafts (now `nemotron_it_requests`).
+    CREATE TABLE IF NOT EXISTS would keep that shape, so move it aside before the schema runs."""
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(it_requests)")}
+    if not cols or "requester_id" in cols:
+        return
+    # Keep other tables' REFERENCES it_requests(...) pointing at the new table, not the renamed one.
+    conn.execute("PRAGMA foreign_keys = OFF")
+    conn.execute("PRAGMA legacy_alter_table = ON")
+    conn.execute("DROP INDEX IF EXISTS ix_it_requests_incident")
+    conn.execute("ALTER TABLE it_requests RENAME TO it_requests_legacy")
+    conn.execute("PRAGMA legacy_alter_table = OFF")
+    conn.execute("PRAGMA foreign_keys = ON")
+    print("[vigil] Moved the old Nemotron it_requests table to it_requests_legacy")
+
+
 def init_db() -> None:
     conn = connect()
     try:
         conn.execute("PRAGMA journal_mode = WAL")
+        _migrate_legacy_it_requests(conn)
         conn.executescript(SCHEMA)
         load_matters(conn)
         _bootstrap_users(conn)
