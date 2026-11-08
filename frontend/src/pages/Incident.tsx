@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, Bot, Check, CheckCircle2, Clock, ListChecks, Loader2, Lock, MessageSquare, Phone, Send, ShieldQuestion, Wrench, X } from "lucide-react";
 import { timeLeft } from "./CommandCenter";
+import ITHelpPanel from "../components/ITHelp";
 import { get, patch, post, session } from "../api/client";
 import { Badge, ErrorBanner, fmtTime, LABELS, responseSteps, SimulatedTag, Spinner, StaleBanner, StatTile, Stepper, usePoll } from "../components/ui";
 
@@ -98,7 +99,10 @@ export default function Incident() {
           {tab === "room" && <RoomTab data={data} act={act} />}
           {tab === "timeline" && <TimelineTab data={data} />}
         </div>
-        <TriagePanel data={data} act={act} />
+        <div className="space-y-6">
+          <ITHelpPanel incidentId={inc.id} />
+          <TriagePanel data={data} act={act} />
+        </div>
       </div>
     </div>
   );
