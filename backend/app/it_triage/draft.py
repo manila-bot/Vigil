@@ -26,6 +26,7 @@ class ModelDraft(BaseModel):
     first_action: str = Field(min_length=3, max_length=300)
     evidence_refs: List[str] = []
     unknowns: List[str] = []
+    notify_role: str = Field(default="it_on_call", max_length=40)
 
     @field_validator("urgency", mode="before")
     @classmethod
@@ -72,9 +73,10 @@ def pick_deadline(matters_result: dict, now_utc: datetime) -> Optional[dict]:
     return (upcoming or with_deadline or [None])[0]
 
 
-def ground(model: ModelDraft, evidence_result: dict, matters_result: dict, request_body: str) -> tuple:
+def ground(model: ModelDraft, evidence_result: dict, matters_result: dict, request_body: str,
+           roles_result: Optional[dict] = None) -> tuple:
     """Return (final_draft_dict, validation_notes)."""
-    from .tools import format_ct
+    from .tools import ON_CALL_ROLES, format_ct
     from ..db import _local_tz
 
     notes: list = []
@@ -153,6 +155,13 @@ def ground(model: ModelDraft, evidence_result: dict, matters_result: dict, reque
         notes.append(f"Raised urgency from {urgency} to {floor}: locked files and a deadline within 24 hours.")
         urgency = floor
 
+    # ---- notify role must be on the server-side allowlist (and offered by the roles tool) ----
+    offered = {r["role"] for r in (roles_result or {}).get("roles", [])} or set(ON_CALL_ROLES)
+    notify_role = model.notify_role.strip().lower()
+    if notify_role not in ON_CALL_ROLES or notify_role not in offered:
+        notes.append(f"notify_role '{model.notify_role}' is not an allowed on-call role; routed to it_on_call.")
+        notify_role = "it_on_call"
+
     team = model.suggested_team.strip() or "On-call IT"
     title = fields["title"].strip()
     if len(title) > 90:
@@ -170,6 +179,7 @@ def ground(model: ModelDraft, evidence_result: dict, matters_result: dict, reque
         "evidence": evidence,
         "file_copying": copying,
         "unknowns": unknowns,
+        "notify_role": notify_role,
         "request_text": request_body,
     }, notes)
 

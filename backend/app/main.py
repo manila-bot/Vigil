@@ -68,6 +68,7 @@ def system_status(user=Depends(current_user)):
 
 
 api.include_router(auth.router)
+api.add_api_route("/me", auth.me, methods=["GET"], tags=["auth"])  # runbook path; same as /auth/me
 api.include_router(users.router)
 api.include_router(incidents.router)
 api.include_router(response.router)

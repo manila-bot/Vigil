@@ -47,7 +47,8 @@ def _run_triage(conn, rid: int, user: dict) -> dict:
     task_id = None
     try:
         result = agent.run(conn, incident, req)
-        draft, notes = ground(result["model_draft"], result["evidence"], result["matters"], req["body"])
+        draft, notes = ground(result["model_draft"], result["evidence"], result["matters"], req["body"],
+                              result.get("roles"))
         conn.execute(
             """UPDATE nemotron_it_requests SET triage_status='drafted', provider=?, model=?, tool_calls_json=?, draft_json=?,
                       validation_json=?, updated_at=? WHERE id=?""",
@@ -71,8 +72,10 @@ def _run_triage(conn, rid: int, user: dict) -> dict:
             ).lastrowid
             conn.execute("UPDATE it_requests SET task_id = ? WHERE id = ?", (task_id, workspace["id"]))
         label = "Nemotron (live)" if result["provider"] == "nemotron" else "FIXTURE (not live AI)"
-        add_event(conn, incident["id"], "it_task_drafted", f"IT task drafted by {label}: {draft['title']}",
-                  user["id"], {"it_request_id": rid, "provider": result["provider"]})
+        add_event(conn, incident["id"], "it_task_drafted",
+                  f"IT task drafted by {label}: {draft['title']} (routed to {draft['notify_role']})",
+                  user["id"], {"it_request_id": rid, "provider": result["provider"], "notify_role": draft["notify_role"],
+                               "tools": [c["tool"] for c in result["tool_calls"]]})
         conn.commit()
     except ProviderError as exc:
         conn.rollback()
@@ -85,6 +88,8 @@ def _run_triage(conn, rid: int, user: dict) -> dict:
         _fail(conn, rid, incident["id"], user, "Triage failed unexpectedly.")
         task_id = None
     if task_id is not None and config.PHOTON_ENABLED:
+        # notify_role was validated against the allowlist; it_on_call resolves to the one allowlisted
+        # Photon conversation (PHOTON_TEST_SENDER), matched to exactly one consenting IT responder.
         recipient = find_authorized_it_sender(conn, os.getenv("PHOTON_TEST_SENDER", ""))
         if recipient:
             try:

@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { ThreatOrb } from "@/components/vigil/ThreatOrb";
 import {
   api, fmtTime, isITResponder, isLitigation, LABELS, useSessionUser,
-  type Availability, type Certainty, type Copying, type IncidentDetail, type IncidentStatus, type ITRequest, type Task, type TaskStatus,
+  type Availability, type Certainty, type Copying, type FilingRequest, type IncidentDetail, type IncidentStatus, type ITRequest, type Task, type TaskStatus,
 } from "@/lib/api";
 import { urgentMatter, useLiveIncident } from "@/lib/incident";
 import { cn } from "@/lib/utils";
@@ -45,8 +45,9 @@ export function LiveIncident({ id }: { id: string }) {
   const inc = d.incident;
   const urgent = urgentMatter(d);
   const locked = d.scope.filter((s) => s.availability === "locked" || s.availability === "destroyed").length;
+  const filingRequest = d.requests[0];
   const filingTasks = d.tasks.filter((t) => d.requests.some((r) => r.task_id === t.id));
-  const owner = filingTasks[0]?.owner_name ?? (filingTasks[0] ? "Unclaimed — waiting for IT" : "No filing task yet");
+  const owner = filingTasks[0]?.owner_name ?? (filingTasks[0] ? (filingRequest?.status === "acknowledged" ? "Acknowledged — waiting for an owner" : "Unclaimed — waiting for IT") : "No filing task yet");
 
   return <div className="space-y-6">
     <section className="space-y-5 border-b border-threat/50 pb-6">
@@ -69,7 +70,7 @@ export function LiveIncident({ id }: { id: string }) {
       {d.headline.length > 0 && <div className="flex flex-wrap gap-2">{d.headline.map((h) => <span key={h.label} className={cn("rounded-full border px-3 py-1 text-xs", tone[h.tone])}>{h.label}</span>)}</div>}
       <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
         <Fact icon={CalendarClock} label="Filing deadline" value={urgent ? `${urgent.deadline_local} ${urgent.deadline_label ?? ""} · ${urgent.matter_code}` : "No deadline at risk"} />
-        <Fact icon={FileWarning} label="File availability" value={locked ? `${locked} data set${locked > 1 ? "s" : ""} locked` : "No locked data recorded"} />
+        <Fact icon={FileWarning} label="File availability" value={locked ? `${locked} data set${locked > 1 ? "s" : ""} inaccessible` : "No inaccessible data recorded"} />
         <Fact icon={CircleDashed} label="Data copying" value={d.counts.unverified_exposure ? `Unverified for ${d.counts.unverified_exposure} data set${d.counts.unverified_exposure > 1 ? "s" : ""}` : d.scope.length ? "No unverified copying" : "Not assessed yet"} />
         <Fact icon={UserRound} label="Filing task owner" value={owner} />
       </dl>
@@ -123,7 +124,7 @@ function FilingHelp({ d, id, run, busy }: { d: IncidentDetail; id: string; run: 
   }
   return <div className="flex flex-wrap items-start gap-5 border-t pt-4">
     {mine.map((r) => <div key={r.id} role="status" className="space-y-1">
-      <div className="font-medium text-primary">IT request #{r.id} · {r.matter_code}: {r.status === "claimed" ? "Claimed by IT" : r.status === "task_ready" ? "Waiting for IT" : r.triage_status === "failed" ? "Triage failed — request saved" : "Saved, routing to IT"}</div>
+      <div className={cn("font-medium", r.status === "done" ? "text-healthy" : "text-primary")}>IT request #{r.id} · {r.matter_code}: {requestLabel(r)}</div>
       <p className="max-w-xl text-sm text-muted-foreground">“{r.body}”{r.provider && ` · drafted by ${r.provider === "nemotron" ? "live Nemotron" : "fixture (not live AI)"}`}</p>
       {r.triage_error && <p className="text-sm text-risk">{r.triage_error}</p>}
     </div>)}
@@ -186,7 +187,7 @@ function Tasks({ d, id, run, busy }: { d: IncidentDetail; id: string; run: Run; 
             <div className="text-xs text-muted-foreground">{t.owner_name ?? t.owner_label ?? "Unassigned"} · due {fmtTime(t.due_at)} · {LABELS.severity[t.priority]}
               {t.evidence_refs.length > 0 && <> · {t.evidence_refs.map((r) => <a key={r} href={`#${r}`} className="ml-1 font-mono text-primary underline">{r}</a>)}</>}
               {t.source === "ai" && <> · AI-drafted{t.approved_by_name ? `, approved by ${t.approved_by_name}` : ""}</>}
-              {filing && <> · filing request · {t.owner_user_id ? "claimed by IT" : "waiting for IT"}</>}</div>
+              {filing && <> · filing request · {t.status === "done" ? "completed" : t.owner_user_id ? "claimed by IT" : d.requests.some((r) => r.task_id === t.id && r.status === "acknowledged") ? "acknowledged · waiting for an owner" : "waiting for IT"}</>}</div>
           </div>
           <select aria-label={`Status for task ${t.id}`} className={field} value={t.status} disabled={!!busy || lockedToOwner}
             title={lockedToOwner ? "Only the IT owner who claimed this task can change its status" : undefined}
@@ -336,7 +337,7 @@ function ITRequestCard({ r, fromFiling, busy, disabled, onRetry }: { r: ITReques
     </div>
     {t.status === "failed" && t.error && <p role="alert" className="text-threat">{t.error}</p>}
     {x && t.status === "drafted" && <div className="rounded border p-3">
-      <div className="text-xs uppercase tracking-wider text-brass">{x.header}</div><div className="font-medium">{x.title}</div>
+      <div className="text-xs uppercase tracking-wider text-brass">{x.header}{x.notify_role ? ` · routed to ${x.notify_role}` : ""}</div><div className="font-medium">{x.title}</div>
       <dl className="mt-2 space-y-1.5"><Row label="Issue" value={x.issue} /><Row label="Deadline" value={x.deadline.text} warn={!x.deadline.known} />
         <Row label="Why it's urgent" value={x.why_urgent} /><Row label="First action" value={x.first_action} /><Row label="File copying" value={x.file_copying.label} /></dl>
       <details className="mt-2 text-xs text-muted-foreground"><summary className="cursor-pointer">Evidence, unknowns and tool calls</summary>
@@ -347,6 +348,15 @@ function ITRequestCard({ r, fromFiling, busy, disabled, onRetry }: { r: ITReques
     </div>}
     {t.can_retry && <Button size="sm" variant="outline" disabled={disabled} onClick={onRetry}>{busy ? <Loader2 className="animate-spin" /> : <RotateCw />}{t.status === "failed" ? "Retry triage" : "Re-run with latest records"}</Button>}
   </div>;
+}
+
+/** What the lawyer sees for their filing request, from request to completion. */
+export function requestLabel(r: FilingRequest): string {
+  if (r.status === "done") return `Completed${r.owner_name ? ` by ${r.owner_name}` : ""} · File available`;
+  if (r.status === "claimed") return `In progress · Assigned to ${r.owner_name ?? "IT"}`;
+  if (r.status === "acknowledged") return "Acknowledged · Waiting for an owner";
+  if (r.status === "task_ready") return r.alert_status === "accepted" ? "Waiting for IT · On-call IT texted" : "Waiting for IT";
+  return r.triage_status === "failed" ? "Triage failed — request saved" : "Saved, routing to IT";
 }
 
 function Row({ label, value, warn }: { label: string; value: string; warn?: boolean }) {

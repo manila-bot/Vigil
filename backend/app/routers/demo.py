@@ -16,6 +16,8 @@ router = APIRouter(prefix="/demo", tags=["demo"])
 
 @router.post("/simulate")
 def simulate(body: SimulateIn = SimulateIn(), user=Depends(current_user), conn=Depends(get_db)):
+    fixture_aliases = {"rename_burst": "ransomware_burst", "benign": "normal_activity"}
+    body = SimulateIn(fixture=fixture_aliases.get(body.fixture, body.fixture))
     fixture_path = config.FIXTURES_DIR / "logs" / f"{body.fixture}.jsonl"
     if body.fixture == "ransomware_burst" and os.getenv("VIGIL_USE_GENERATED_REPLAY") == "1":
         replay_name = "synthetic_filing_attack_replay.jsonl"

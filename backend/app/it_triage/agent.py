@@ -15,19 +15,20 @@ SYSTEM_PROMPT = """You are Vigil's IT triage assistant at a law firm during a cy
 A lawyer asked for IT help. Turn the request into ONE clear task an on-call IT responder can act on at a glance.
 
 Rules:
-- First call BOTH tools: get_incident_evidence and get_affected_matters. They are read-only and already scoped to this incident.
+- First call ALL THREE tools: get_incident_evidence, get_affected_matters and get_on_call_roles. They are read-only and already scoped to this incident.
 - Use only facts from the request and the tool results. Never invent systems, files, times or evidence.
 - Use the deadline exactly as given in deadline_ct. If it is "unknown", say IT must verify it.
 - If data_copying is "unknown", do NOT say files were or were not copied; list it under unknowns.
 - The first action must be one concrete step IT can start now.
 - Cite evidence with refs from the tools: evidence refs like "EV-1" and filing records like "MATTER:LIT-2291".
+- notify_role must be a role name returned by get_on_call_roles.
 - Plain language, no jargon. Title under 80 characters, starting with a verb.
 
 When you have the tool results, reply with ONLY this JSON object (no prose, no code fences):
 {"title": str, "suggested_team": str, "urgency": "urgent"|"high"|"normal", "issue": str, "affected": str,
- "why_urgent": str, "first_action": str, "evidence_refs": [str], "unknowns": [str]}"""
+ "why_urgent": str, "first_action": str, "evidence_refs": [str], "unknowns": [str], "notify_role": str}"""
 
-REQUIRED_TOOLS = ("get_incident_evidence", "get_affected_matters")
+REQUIRED_TOOLS = ("get_incident_evidence", "get_affected_matters", "get_on_call_roles")
 
 
 def _parse_json(text: str) -> dict:
@@ -42,6 +43,8 @@ def _parse_json(text: str) -> dict:
 def _summ(name, result):
     if name == "get_incident_evidence":
         return f"{len(result['evidence'])} evidence items, {len(result['scope'])} scope records"
+    if name == "get_on_call_roles":
+        return ", ".join(f"{r['role']}: {r['active_responders']} active" for r in result["roles"]) or "no roles"
     deadlines = [m["deadline_ct"] for m in result["matters"]]
     return f"{len(result['matters'])} matters; deadline {deadlines[0] if deadlines else 'unknown'}"
 
@@ -103,7 +106,8 @@ def run_live(conn, incident, request) -> dict:
         except (ValueError, ValidationError) as exc2:
             raise client.ProviderError("Nemotron's draft didn't match the task format.", str(exc2))
     return {"provider": "nemotron", "model": client.describe(), "tool_calls": log, "model_draft": draft,
-            "evidence": results["get_incident_evidence"], "matters": results["get_affected_matters"]}
+            "evidence": results["get_incident_evidence"], "matters": results["get_affected_matters"],
+            "roles": results["get_on_call_roles"]}
 
 
 def run_fixture(conn, incident, request) -> dict:
@@ -112,6 +116,7 @@ def run_fixture(conn, incident, request) -> dict:
     log, results = [], {}
     ev = _execute(conn, iid, "get_incident_evidence", {}, log, results, "fixture")
     mt = _execute(conn, iid, "get_affected_matters", {}, log, results, "fixture")
+    roles = _execute(conn, iid, "get_on_call_roles", {}, log, results, "fixture")
     locked = [s for s in ev["scope"] if s["availability"] in ("locked", "destroyed")]
     target = locked[0] if locked else (ev["scope"][0] if ev["scope"] else None)
     thing = target["data_category"] if target else "the files named in the request"
@@ -130,9 +135,10 @@ def run_fixture(conn, incident, request) -> dict:
         first_action=f"Check for a clean backup of the {thing_lc} and confirm the lawyer can open the recovered copy.",
         evidence_refs=[e["ref"] for e in ev["evidence"]][:3] + ([m["record_ref"]] if m else []),
         unknowns=[],
+        notify_role="it_on_call",
     )
     return {"provider": "fixture", "model": "fixture-template-v1", "tool_calls": log, "model_draft": draft,
-            "evidence": ev, "matters": mt}
+            "evidence": ev, "matters": mt, "roles": roles}
 
 
 def run(conn, incident, request) -> dict:

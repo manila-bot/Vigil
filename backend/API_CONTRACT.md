@@ -145,3 +145,11 @@ A lawyer's "Request IT help" is **saved first**, then triaged. If triage fails, 
 **Provider:** `NEMOTRON_PROVIDER=nvidia` (NVIDIA API catalog, `NVIDIA_API_KEY`) or `openrouter` (`https://openrouter.ai/api/v1`, model `nvidia/nemotron-3-super-120b-a12b:free`, `OPENROUTER_API_KEY`). Each key is sent only to its own provider. `triage.model` reads like `"openrouter · nvidia/nemotron-3-super-120b-a12b:free"`.
 
 **Handoff to approval + Photon (team integration):** `app/it_triage/draft.py: task_fields(draft)` maps an approved draft to the existing `POST /incidents/{id}/tasks` body. `as_text_card(draft)` gives a plain-text version.
+
+## Runbook alignment (immediate branch)
+
+- Incident codes are `VIG-001` style. `/api/demo/simulate` also accepts the runbook fixture names `rename_burst` and `benign`. `GET /api/me` is an alias of `/api/auth/me`.
+- Nemotron (NVIDIA hosted, `nvidia/nemotron-3.5-super-vl-120b-a12b` by default) calls `get_incident_evidence`, `get_affected_matters` and `get_on_call_roles`. The draft's `notify_role` must be an allowlisted role (`it_on_call`); anything else is replaced and noted in `triage.validation`.
+- The filing alert text is `Vigil: An urgent recovery task is ready. Reply TAKE VIG-001 to claim it or ACK VIG-001 if you saw it. Open Vigil for details.` `TAKE` claims and texts back a claim confirmation; `ACK` records receipt, keeps the task unowned, and texts back a receipt.
+- Photon's `Idempotency-Key` adds the send-attempt time to Vigil's key, so a demo reset (which restarts ids) never reuses a key Photon has already seen.
+- `NVIDIA_ENABLED` / `PHOTON_ENABLED` work as aliases for `VIGIL_NEMOTRON_ENABLED` / `VIGIL_PHOTON_ENABLED`.

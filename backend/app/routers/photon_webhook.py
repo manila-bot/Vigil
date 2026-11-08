@@ -182,10 +182,13 @@ def apply_command(conn, user, command):
     return "claimed" if claimed else "task_unavailable"
 
 
-def confirm_claim(phone: str, event_id: str) -> None:
+CLAIM_CONFIRMATION = "Vigil: Your claim was recorded. You own this task. Open Vigil to view it."
+ACK_CONFIRMATION = "Vigil: Receipt recorded. The task is still unclaimed. Reply TAKE with the incident code to claim it."
+
+
+def confirm_claim(phone: str, event_id: str, text: str = CLAIM_CONFIRMATION) -> None:
     try:
-        result = photon.send(phone, "Vigil: Your claim was recorded. Open Vigil to view the task.",
-                             "imessage", f"vigil-claim:{event_id}")
+        result = photon.send(phone, text, "imessage", f"vigil-reply:{event_id}")
         if result["send_status"] != "accepted":
             log.warning("Photon claim confirmation status: %s", result["send_status"])
     except Exception:
@@ -234,8 +237,9 @@ async def receive_photon_webhook(request: Request, background_tasks: BackgroundT
         conn.execute("UPDATE photon_webhook_events SET status='processed',processed_at=?,error=? WHERE event_id=?",
                      (now(), result, event_id))
         conn.commit()
-        if result == "claimed" and photon.config.PHOTON_ENABLED:
-            background_tasks.add_task(confirm_claim, user["phone"], event_id)
+        if result in ("claimed", "acknowledged") and photon.config.PHOTON_ENABLED:
+            background_tasks.add_task(confirm_claim, user["phone"], event_id,
+                                      CLAIM_CONFIRMATION if result == "claimed" else ACK_CONFIRMATION)
         return {"ok": True, "result": result}
     except Exception:
         conn.rollback()

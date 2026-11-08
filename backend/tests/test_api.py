@@ -256,3 +256,15 @@ def test_unknown_send_is_not_repeated(client, monkeypatch):
     assert first["notifications"][0]["send_status"] == "unknown"
     second = client.post(f"/api/incidents/{iid}/notify", json={"recipient_user_id": rid}, headers=r).json()
     assert second["notify_result"]["duplicate"] is True and len(calls) == 1
+
+
+def test_runbook_aliases_codes_and_me(client):
+    r = responder(client)
+    assert client.post("/api/demo/simulate", json={"fixture": "benign"}, headers=r).json()["detected"] is False
+    sim = client.post("/api/demo/simulate", json={"fixture": "rename_burst"}, headers=r).json()
+    assert sim["created"] is True
+    detail = client.get(f"/api/incidents/{sim['incident_id']}", headers=r).json()
+    assert detail["incident"]["code"] == "VIG-001"
+    lit = next(m for m in detail["matters_at_risk"] if m["matter_code"] == "LIT-2291")
+    assert lit["deadline_local"] == "Tomorrow 2:00 PM"
+    assert client.get("/api/me", headers=r).json()["email"] == "responder@vigil.local"

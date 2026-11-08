@@ -142,8 +142,9 @@ def notify(incident_id: int, body: NotifyIn, user=Depends(current_user), conn=De
     if body.task_id is not None:
         if inc["status"] == "closed" or task["owner_user_id"] is not None or task["status"] != "open":
             raise HTTPException(409, "This task is no longer waiting for IT")
-        msg = (f"VIGIL ALERT {inc['code']}: IT help is needed. Reply TAKE {inc['code']} to claim. "
-               f"If several tasks are open, reply TAKE {body.task_id}. Open Vigil for details.")
+        # Runbook wording. Case and filing details stay inside Vigil.
+        msg = (f"Vigil: An urgent recovery task is ready. Reply TAKE {inc['code']} to claim it "
+               f"or ACK {inc['code']} if you saw it. Open Vigil for details.")
     ts = now()
     if existing:  # previous attempt definitely failed -> retry on the same row
         nid = existing["id"]
@@ -159,7 +160,9 @@ def notify(incident_id: int, body: NotifyIn, user=Depends(current_user), conn=De
     conn.commit()  # claim the idempotency key before calling the provider
 
     try:
-        result = photon.send(recipient["phone"], msg, body.channel, key)
+        # Vigil's key dedupes within this database; the attempt timestamp keeps Photon's key unique after
+        # a demo reset reuses incident/task ids (Photon rejects a reused key with a different message: 422).
+        result = photon.send(recipient["phone"], msg, body.channel, f"{key}:{ts}")
     except TimeoutError as exc:
         result = {"send_status": "unknown", "provider": "photon", "provider_message_id": None,
                   "raw": {"error": f"timeout: {exc}"}}

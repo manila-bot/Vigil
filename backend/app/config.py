@@ -41,7 +41,8 @@ LOGIN_LOCK_SECONDS = int(os.getenv("VIGIL_LOGIN_LOCK_SECONDS", "60"))
 CORS_ORIGINS = [o.strip() for o in os.getenv("VIGIL_CORS_ORIGINS", "").split(",") if o.strip()]
 
 # External providers are OFF unless explicitly enabled. Core features never depend on them.
-NEMOTRON_ENABLED = os.getenv("VIGIL_NEMOTRON_ENABLED", "0") == "1"
+# The runbook names (NVIDIA_ENABLED / PHOTON_ENABLED) work as aliases for the VIGIL_* switches.
+NEMOTRON_ENABLED = (os.getenv("VIGIL_NEMOTRON_ENABLED") or os.getenv("NVIDIA_ENABLED", "0")).strip("'\"") == "1"
 # Nemotron, reached through one of two OpenAI-compatible providers. Keys never leave the server,
 # and each key is only ever sent to its own provider.
 #   nvidia     -> NVIDIA API catalog (NVIDIA_API_KEY)
@@ -50,7 +51,7 @@ NEMOTRON_PROVIDER = os.getenv("NEMOTRON_PROVIDER", "nvidia").strip().lower()
 NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY", "")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 _PROVIDER_DEFAULTS = {
-    "nvidia": ("https://integrate.api.nvidia.com/v1", "nvidia/nemotron-3-super-120b-a12b"),
+    "nvidia": ("https://integrate.api.nvidia.com/v1", "nvidia/nemotron-3.5-super-vl-120b-a12b"),
     "openrouter": ("https://openrouter.ai/api/v1", "nvidia/nemotron-3-super-120b-a12b:free"),
 }
 _base_default, _model_default = _PROVIDER_DEFAULTS.get(NEMOTRON_PROVIDER, _PROVIDER_DEFAULTS["nvidia"])
@@ -58,7 +59,7 @@ NEMOTRON_BASE_URL = (os.getenv("NEMOTRON_BASE_URL") or _base_default).rstrip("/"
 NEMOTRON_MODEL = os.getenv("NEMOTRON_MODEL") or _model_default
 NEMOTRON_TIMEOUT = float(os.getenv("NEMOTRON_TIMEOUT", "60"))
 FIRM_TIMEZONE_LABEL = os.getenv("VIGIL_TZ_LABEL", "CT")
-PHOTON_ENABLED = os.getenv("VIGIL_PHOTON_ENABLED", "0") == "1"
+PHOTON_ENABLED = (os.getenv("VIGIL_PHOTON_ENABLED") or os.getenv("PHOTON_ENABLED", "0")).strip("'\"") == "1"
 
 # First-run bootstrap accounts. If passwords are not provided, random ones are generated
 # and written once to data/initial_credentials.txt (gitignored).

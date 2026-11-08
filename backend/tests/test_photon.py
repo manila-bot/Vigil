@@ -210,3 +210,60 @@ def test_unactivated_or_simulated_alerts_do_not_authorize(setup,change):
     with connect() as db: db.execute(change)
     assert send(c,event()).json()['result']=='no_outstanding_alert'
     assert send(c,event(f'TAKE {tid}','take')).json()['result']=='task_not_authorized'
+
+
+def test_ack_then_take_then_done_as_the_lawyer_sees_it(setup, monkeypatch):
+    from app.notify import photon
+
+    c, uid, _, _ = setup
+    sends = []
+    monkeypatch.setattr(photon.config, "PHOTON_ENABLED", True)
+    monkeypatch.setattr(photon, "send", lambda phone, body, channel, key: sends.append((phone, body, key)) or
+                        {"send_status": "accepted", "provider": "photon", "provider_message_id": f"m{len(sends)}"})
+    lawyer = responder(c)
+    incident_id = c.post("/api/demo/simulate", headers=lawyer, json={"fixture": "rename_burst"}).json()["incident_id"]
+    path = f"/api/incidents/{incident_id}"
+    first = c.post(f"{path}/requests", headers=lawyer,
+                   json={"matter_code": "LIT-2291", "body": "Find the signed exhibits."}).json()
+    code = first["incident"]["code"]
+    assert code.startswith("VIG-") and len(code) == 7  # VIG-001 style
+    assert sends[0][1].startswith("Vigil: An urgent recovery task is ready. Reply TAKE " + code)
+    assert first["requests"][0]["status"] == "task_ready"
+
+    assert send(c, event(f"ACK {code}", "ack")).json()["result"] == "acknowledged"
+    assert "Receipt recorded" in sends[-1][1]
+    req = c.get(path, headers=lawyer).json()["requests"][0]
+    assert req["status"] == "acknowledged" and req["acknowledged_at"] and req["owner_user_id"] is None
+
+    assert send(c, event(f"TAKE {code}", "take")).json()["result"] == "claimed"
+    assert "claim was recorded" in sends[-1][1]
+    req = c.get(path, headers=lawyer).json()["requests"][0]
+    assert req["status"] == "claimed" and req["owner_name"] == "IT Test"
+
+    it = login_it(c)
+    done = c.patch(f"{path}/tasks/{req['task_id']}", headers=it, json={"status": "done"})
+    assert done.status_code == 200, done.text
+    assert c.get(path, headers=lawyer).json()["requests"][0]["status"] == "done"
+
+
+def login_it(c):
+    r = c.post("/api/auth/login", json={"email": "it@test.local", "password": "test-password-123"})
+    return {"Authorization": f"Bearer {r.json()['token']}"}
+
+
+def test_photon_key_is_fresh_after_demo_reset(setup, monkeypatch):
+    """After /demo/reset, ids restart at 1; Photon must not see a reused Idempotency-Key (422)."""
+    from app.notify import photon
+
+    c, _, _, _ = setup
+    keys = []
+    monkeypatch.setattr(photon.config, "PHOTON_ENABLED", True)
+    monkeypatch.setattr(photon, "send", lambda phone, body, channel, key: keys.append(key) or
+                        {"send_status": "accepted", "provider": "photon", "provider_message_id": "m"})
+    lawyer, a = responder(c), admin(c)
+    for _ in range(2):
+        c.post("/api/demo/reset", headers=a)
+        iid = c.post("/api/demo/simulate", headers=lawyer).json()["incident_id"]
+        c.post(f"/api/incidents/{iid}/requests", headers=lawyer, json={"matter_code": "LIT-2291", "body": "Exhibits"})
+        time.sleep(1.1)  # timestamps are second-resolution
+    assert len(keys) == 2 and keys[0] != keys[1]

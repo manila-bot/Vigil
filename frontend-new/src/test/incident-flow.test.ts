@@ -38,3 +38,15 @@ describe("live backend mapping", () => {
     expect(errorDetail(500, null)).toBe("Request failed (500).");
   });
 });
+
+describe("lawyer request status", () => {
+  const base = { id: 1, matter_code: "LIT-2291", requester_id: 2, body: "b", created_at: "", task_id: 5, triage_id: 1,
+    triage_status: "drafted" as const, triage_error: null, provider: "nemotron" };
+  it("walks from waiting to acknowledged to assigned to completed", async () => {
+    const { requestLabel } = await import("@/components/vigil/LiveIncident");
+    expect(requestLabel({ ...base, status: "task_ready", alert_status: "accepted" })).toBe("Waiting for IT · On-call IT texted");
+    expect(requestLabel({ ...base, status: "acknowledged" })).toBe("Acknowledged · Waiting for an owner");
+    expect(requestLabel({ ...base, status: "claimed", owner_name: "Jordan" })).toBe("In progress · Assigned to Jordan");
+    expect(requestLabel({ ...base, status: "done", owner_name: "Jordan" })).toBe("Completed by Jordan · File available");
+  });
+});

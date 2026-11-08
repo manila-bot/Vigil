@@ -71,8 +71,8 @@ def test_live_workflow_uses_tools_and_records(client, monkeypatch):
     fake = go_live(monkeypatch, [
         {"role": "assistant", "content": None, "tool_calls": [
             tool_call("get_incident_evidence", json.dumps({"incident_id": other_iid})),
-            tool_call("get_affected_matters")]},
-        final(),
+            tool_call("get_affected_matters"), tool_call("get_on_call_roles")]},
+        final(notify_role="it_on_call"),
     ])
     r = client.post(f"/api/incidents/{iid}/it-requests", json=req)
     assert r.status_code == 201
@@ -80,7 +80,7 @@ def test_live_workflow_uses_tools_and_records(client, monkeypatch):
     assert d["body"] == "I can't open the exhibits"
     assert d["triage"]["status"] == "drafted" and d["triage"]["is_live_nemotron"]
     calls = d["triage"]["tool_calls"]
-    assert [c["tool"] for c in calls] == ["get_incident_evidence", "get_affected_matters"]
+    assert [c["tool"] for c in calls] == ["get_incident_evidence", "get_affected_matters", "get_on_call_roles"]
     assert all(c["scoped_to_incident"] == iid for c in calls)  # model's incident_id ignored
     assert fake.calls[0]["tools"][0]["function"]["name"] == "get_incident_evidence"
     draft = d["draft"]
@@ -92,6 +92,21 @@ def test_live_workflow_uses_tools_and_records(client, monkeypatch):
     assert {e["ref"] for e in draft["evidence"]} == {"EV-1", "EV-2", "MATTER:LIT-4417"}
     assert draft["file_copying"]["status"] == "unknown"
     assert any("copied" in u.lower() for u in draft["unknowns"])
+    assert draft["notify_role"] == "it_on_call"
+    roles = next(c for c in calls if c["tool"] == "get_on_call_roles")["result"]
+    assert "phone" not in json.dumps(roles["roles"][0]).replace("reachable_by_phone", "")  # no contact details
+
+
+def test_unknown_notify_role_is_rejected(client, monkeypatch):
+    iid, req = seed(client)
+    go_live(monkeypatch, [
+        {"role": "assistant", "content": None, "tool_calls": [
+            tool_call("get_incident_evidence"), tool_call("get_affected_matters"), tool_call("get_on_call_roles")]},
+        final(notify_role="managing_partner"),
+    ])
+    d = client.post(f"/api/incidents/{iid}/it-requests", json=req).json()
+    assert d["draft"]["notify_role"] == "it_on_call"
+    assert any("not an allowed on-call role" in n for n in d["triage"]["validation"])
 
 
 def test_rerun_uses_updated_deadline_and_fixes_stale_time(client, monkeypatch):

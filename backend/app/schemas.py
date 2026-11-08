@@ -141,4 +141,5 @@ class ITRequestCreate(BaseModel):
 
 
 class SimulateIn(BaseModel):
-    fixture: Literal["ransomware_burst", "normal_activity"] = "ransomware_burst"
+    # rename_burst / benign are the runbook's names for the same two fixtures.
+    fixture: Literal["ransomware_burst", "normal_activity", "rename_burst", "benign"] = "ransomware_burst"

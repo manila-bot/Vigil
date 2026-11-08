@@ -25,7 +25,7 @@ def get_incident_or_404(conn, incident_id: int) -> dict:
 
 def next_incident_code(conn) -> str:
     n = conn.execute("SELECT COALESCE(MAX(id), 0) + 1 FROM incidents").fetchone()[0]
-    return f"VIG-{n:04d}"
+    return f"VIG-{n:03d}"  # VIG-001, as in the runbook
 
 
 def local_time_label(iso: str) -> str:
@@ -160,8 +160,18 @@ def incident_detail(conn, incident_id: int) -> dict:
                      AND a.idempotency_key = printf('incident:%d:task:%d:user:%d:imessage',
                                                    r.incident_id, r.task_id, a.recipient_user_id)
                    ORDER BY a.id DESC LIMIT 1) AS alert_status,
+                  (SELECT MAX(a.acknowledged_at) FROM notifications a
+                   WHERE a.incident_id = r.incident_id
+                     AND a.idempotency_key = printf('incident:%d:task:%d:user:%d:imessage',
+                                                   r.incident_id, r.task_id, a.recipient_user_id)) AS acknowledged_at,
+                  t.updated_at AS task_updated_at,
                   CASE WHEN t.status = 'done' THEN 'done'
                        WHEN t.owner_user_id IS NOT NULL THEN 'claimed'
+                       WHEN EXISTS (SELECT 1 FROM notifications a WHERE a.incident_id = r.incident_id
+                                      AND a.acknowledged_at IS NOT NULL
+                                      AND a.idempotency_key = printf('incident:%d:task:%d:user:%d:imessage',
+                                                                    r.incident_id, r.task_id, a.recipient_user_id))
+                            THEN 'acknowledged'
                        WHEN r.task_id IS NOT NULL THEN 'task_ready' ELSE 'saved' END AS status
            FROM it_requests r JOIN matters m ON m.id = r.matter_id
            LEFT JOIN tasks t ON t.id = r.task_id LEFT JOIN users u ON u.id = t.owner_user_id
