@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from ..db import get_db, row
 from ..schemas import LoginIn
-from ..security import (_DUMMY_HASH, create_session, current_user, delete_session, login_limiter,
+from ..security import (DUMMY_HASH, create_session, current_user, delete_session, login_limiter,
                         verify_password)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -13,7 +13,7 @@ def login(body: LoginIn, conn=Depends(get_db)):
     key = body.email.strip().lower()
     login_limiter.check(key)
     user = row(conn.execute("SELECT * FROM users WHERE email = ?", (key,)))
-    ok = verify_password(body.password, user["password_hash"] if user else _DUMMY_HASH)
+    ok = verify_password(body.password, user["password_hash"] if user else DUMMY_HASH)
     if not user or not ok or not user["active"]:
         login_limiter.fail(key)
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Email or password is incorrect")
