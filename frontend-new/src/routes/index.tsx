@@ -71,6 +71,17 @@ function Overview() {
   return (
     <div className="space-y-5" data-radar-alert={radarAlert ? "" : undefined}>
       {radarAlert && <div aria-hidden="true" className="radar-screen-alert" />}
+      {demoScan === "alert" && (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={() => setDemoScan("ready")}
+            className="rounded-md bg-destructive px-4 py-2 text-sm font-semibold text-destructive-foreground hover:bg-destructive/85 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-destructive"
+          >
+            Resolve issue
+          </button>
+        </div>
+      )}
       <div className="grid gap-5 lg:grid-cols-[1fr_1.4fr]">
         <div className="flex flex-col justify-center">
           <h1 className="text-5xl font-semibold leading-[1.05] tracking-tight">
