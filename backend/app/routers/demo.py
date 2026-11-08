@@ -16,8 +16,14 @@ router = APIRouter(prefix="/demo", tags=["demo"])
 
 @router.post("/simulate")
 def simulate(body: SimulateIn = SimulateIn(), user=Depends(current_user), conn=Depends(get_db)):
+    return run_detection(conn, body.fixture, user["id"])
+
+
+def run_detection(conn, fixture: str = "ransomware_burst", actor_id=None) -> dict:
+    """Replay a synthetic log through the detector and open an incident if it finds ransomware.
+    Shared by POST /api/demo/simulate and `python -m scripts.simulate_attack` (actor_id None = Vigil's monitor)."""
     fixture_aliases = {"rename_burst": "ransomware_burst", "benign": "normal_activity"}
-    body = SimulateIn(fixture=fixture_aliases.get(body.fixture, body.fixture))
+    body = SimulateIn(fixture=fixture_aliases.get(fixture, fixture))
     fixture_path = config.FIXTURES_DIR / "logs" / f"{body.fixture}.jsonl"
     if body.fixture == "ransomware_burst" and os.getenv("VIGIL_USE_GENERATED_REPLAY") == "1":
         replay_name = "synthetic_filing_attack_replay.jsonl"
@@ -51,7 +57,7 @@ def simulate(body: SimulateIn = SimulateIn(), user=Depends(current_user), conn=D
     cur = conn.execute(
         """INSERT INTO incidents (code, title, status, severity, category, summary, detected_at, source, created_by,
                                   created_at, updated_at) VALUES (?,?,'open','critical','ransomware',?,?,'simulated',?,?,?)""",
-        (next_incident_code(conn), title, summary, f["window_start"], user["id"], ts, ts))
+        (next_incident_code(conn), title, summary, f["window_start"], actor_id, ts, ts))
     iid = cur.lastrowid
     add_event(conn, iid, "detection", f"Simulated detector flagged {f['rename_count']} file renames on {f['host']}",
               None, {"fixture": body.fixture, "simulated": True})
@@ -89,6 +95,10 @@ def simulate(body: SimulateIn = SimulateIn(), user=Depends(current_user), conn=D
 @router.post("/reset")
 def reset(admin=Depends(require_admin), conn=Depends(get_db)):
     """Wipe incident data (keeps users and matters). Admin only — for re-running the demo."""
+    return reset_demo(conn)
+
+
+def reset_demo(conn) -> dict:
     # Databases migrated by db._migrate_legacy_it_requests keep old rows that still reference incidents.
     if row(conn.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'it_requests_legacy'")):
         conn.execute("DELETE FROM it_requests_legacy")

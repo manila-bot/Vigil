@@ -193,7 +193,6 @@ export const api = {
   createIncident: (title: string, summary?: string) => post<IncidentDetail>("/incidents", { title, summary }),
   incident: (id: number | string) => get<IncidentDetail>(inc(id)),
   updateIncident: (id: number | string, body: { status?: IncidentStatus; severity?: Severity }) => patch<IncidentDetail>(inc(id), body),
-  simulate: (fixture: "ransomware_burst" | "normal_activity" = "ransomware_burst") => post<SimulateResult>("/demo/simulate", { fixture }),
   // scope + evidence
   addScope: (id: number | string, body: { system: string; data_category: string; availability: Availability; copying: Copying; certainty: Certainty; matter_code?: string; notes?: string }) =>
     post<IncidentDetail>(`${inc(id)}/scope`, body),

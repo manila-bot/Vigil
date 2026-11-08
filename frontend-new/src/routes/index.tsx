@@ -1,7 +1,5 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
-import { toast } from "sonner";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, CalendarClock, ListChecks, ShieldCheck, ShieldQuestion, Zap } from "lucide-react";
 import { AppShell } from "@/components/vigil/AppShell";
 import { ThreatOrb } from "@/components/vigil/ThreatOrb";
@@ -39,26 +37,11 @@ function SampleCommand() {
       <Button variant="outline" onClick={() => actions.simulateAttack()}><Zap />Simulate attack (sample)</Button></section>;
 }
 
+// Incidents are opened by Vigil's backend detector (scripts/simulate_attack.py for the demo); this page
+// only watches for them. Polling every 2 s means a new detection appears without a click.
 function LiveCommand() {
   const user = useCurrentUser();
-  const nav = useNavigate();
-  const client = useQueryClient();
-  const [busy, setBusy] = useState(false);
   const dash = useQuery({ queryKey: ["vigil", "dashboard"], queryFn: api.dashboard, enabled: !!user, refetchInterval: 2000, retry: false });
-
-  async function simulate(fixture: "ransomware_burst" | "normal_activity") {
-    setBusy(true);
-    try {
-      const r = await api.simulate(fixture);
-      await client.invalidateQueries({ queryKey: ["vigil"] });
-      if (r.incident_id) {
-        if (r.message) toast.info(r.message);
-        await nav({ to: "/incidents/$id", params: { id: String(r.incident_id) } });
-      } else toast.success(r.message ?? "No suspicious activity found.");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Simulation failed.");
-    } finally { setBusy(false); }
-  }
 
   if (dash.isPending) return <p role="status">Loading Command Center…</p>;
   if (dash.error) return <p role="alert" className="rounded-lg border border-threat/50 p-4 text-threat">Unable to load the Command Center: {dash.error.message}</p>;
@@ -74,19 +57,12 @@ function LiveCommand() {
           <div className="font-mono text-xs text-threat">{active.code} · {LABELS.status[active.status]} · {LABELS.severity[active.severity]}{active.source === "simulated" ? " · simulated" : ""}</div>
           <h2 className="text-2xl">{active.title.replace("[SIMULATED] ", "")}</h2>
           {urgent && <p className="flex items-center gap-2 text-risk"><CalendarClock className="h-4 w-4" />{urgent.deadline_local} {urgent.deadline_label ?? "deadline"} — {urgent.matter_code} at risk</p>}
-          <div className="flex flex-wrap gap-2">
-            <Button asChild><Link to="/incidents/$id" params={{ id: String(active.id) }}>Open active incident <ArrowRight /></Link></Button>
-            <Button variant="outline" disabled={busy} onClick={() => void simulate("ransomware_burst")}><Zap />{busy ? "Simulating…" : "Simulate attack"}</Button>
-          </div>
+          <Button asChild><Link to="/incidents/$id" params={{ id: String(active.id) }}>Open active incident <ArrowRight /></Link></Button>
         </div>
       </article> :
       <section className="space-y-4 border-y py-10"><ShieldCheck className="h-10 w-10 text-healthy" /><h2 className="text-2xl">No active incident</h2>
-        <p className="text-sm text-muted-foreground">Replay the synthetic ransomware log to see how Vigil opens an incident. All demo data is fictional.</p>
-        <div className="flex flex-wrap gap-2">
-          <Button disabled={busy} onClick={() => void simulate("ransomware_burst")}><Zap />{busy ? "Simulating…" : "Simulate attack"}</Button>
-          <Button variant="outline" disabled={busy} onClick={() => void simulate("normal_activity")}>Check normal activity</Button>
-          <Button variant="ghost" asChild><Link to="/incidents">Report incident</Link></Button>
-        </div>
+        <p className="text-sm text-muted-foreground">All systems verified. Vigil is watching firm systems and will open an incident here as soon as it detects one.</p>
+        <Button variant="ghost" asChild><Link to="/incidents">Report incident</Link></Button>
       </section>}
 
     <dl className="grid gap-4 sm:grid-cols-3">

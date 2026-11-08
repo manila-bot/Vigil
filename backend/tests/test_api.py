@@ -268,3 +268,15 @@ def test_runbook_aliases_codes_and_me(client):
     lit = next(m for m in detail["matters_at_risk"] if m["matter_code"] == "LIT-2291")
     assert lit["deadline_local"] == "Tomorrow 2:00 PM"
     assert client.get("/api/me", headers=r).json()["email"] == "responder@vigil.local"
+
+
+def test_backend_attack_script_opens_incident_without_a_click(client, capsys):
+    from scripts.simulate_attack import main
+    assert main(["normal"]) == 0 and "No suspicious activity" in capsys.readouterr().out
+    assert main(["attack"]) == 0 and "opened VIG-001" in capsys.readouterr().out
+    assert main(["attack"]) == 0 and "Already tracked" in capsys.readouterr().out
+    incidents = client.get("/api/incidents", headers=responder(client)).json()
+    assert len(incidents) == 1 and incidents[0]["created_by"] is None  # detected by Vigil, not a person
+    assert main(["reset", "attack"]) == 0
+    assert len(client.get("/api/incidents", headers=responder(client)).json()) == 1
+    assert main(["boom"]) == 2
