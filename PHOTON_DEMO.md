@@ -34,7 +34,7 @@ Open http://127.0.0.1:5173 and sign in with your existing account.
 The Vite `/api` proxy targets `127.0.0.1:8000`; normal dev does not enable sample data.
 Restart the backend after editing `.env`. Do not run `dev:mock` for the phone demo.
 
-## Live checklist (deferred; no live send or incoming phone reply verified)
+## Live checklist
 
 1. Run preflight until ready. In Access, verify the existing IT Lead is active,
    has role Responder, team role IT lead, the personal phone, and consent enabled.
@@ -59,9 +59,22 @@ Restart the backend after editing `.env`. Do not run `dev:mock` for the phone de
    and a `task_claimed` timeline entry. Claimed tasks cannot be stolen.
 9. Disable the Photon destination and stop the tunnel with Ctrl+C after testing.
 
-No tunnel or live Photon messages were used during implementation. Real credentials,
-a public destination, and phone interactions remain prerequisites. Browser visual QA
-was unavailable in this environment; the production build and HTTP proxy were checked.
+Live verification on November 8, 2026:
+
+- Restored private local configuration; Photon API authentication returned HTTP 200.
+- Confirmed exactly one authorized IT Lead matches the configured test recipient.
+- Installed Cloudflare Tunnel and verified public health HTTP 200 and unsigned webhook HTTP 401.
+- Updated and enabled the existing incoming-message destination for the temporary test tunnel.
+- Sent one connectivity test iMessage: Photon returned HTTP 202 and the user confirmed arrival.
+- Received a real signed incoming ACK. Vigil processed it with `no_outstanding_alert`:
+  no incident notification existed, so no acknowledgment or task state changed.
+- Live incident acknowledgment, task claiming, and resulting dashboard updates remain unverified.
+- Triage is blocked because Nemotron is enabled locally but its module is not implemented.
+  Implement that provider, or explicitly use the labeled mock triage for Photon testing.
+
+The temporary tunnel and destination were enabled for the test; disable the destination
+and stop the tunnel when testing ends. Never reuse an expired Quick Tunnel URL.
+Browser visual QA was unavailable in this environment; the production build and HTTP proxy were checked.
 
 ## Security and processing contract
 

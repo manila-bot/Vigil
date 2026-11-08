@@ -1,4 +1,3 @@
-
 """Secure Photon 2.0 webhook receiver for Vigil."""
 
 import base64
