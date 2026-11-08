@@ -58,9 +58,16 @@
   --destructive: oklch(0.64 0.23 25);
   --destructive-foreground: oklch(0.98 0 0);
   --safe: oklch(0.82 0.17 140);
+  --red-text: oklch(0.76 0.17 25);
   --border: oklch(0.88 0.2 125 / 14%);
   --input: oklch(0.88 0.2 125 / 20%);
   --ring: oklch(0.88 0.2 125);
+}
+
+@layer utilities {
+  :where([data-radar-alert]) :is(.text-primary, .text-accent, .text-safe, .text-healthy, .text-brass, .text-risk):where(:not(svg)) {
+    color: var(--red-text);
+  }
 }
 
 @layer base {

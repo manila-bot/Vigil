@@ -69,7 +69,7 @@ function Overview() {
     v.detail?.requests.filter((r) => !r.owner_user_id && r.status !== "done").length ?? 0;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5" data-radar-alert={radarAlert ? "" : undefined}>
       {radarAlert && <div aria-hidden="true" className="radar-screen-alert" />}
       <div className="grid gap-5 lg:grid-cols-[1fr_1.4fr]">
         <div className="flex flex-col justify-center">
