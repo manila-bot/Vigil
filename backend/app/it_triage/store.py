@@ -26,6 +26,10 @@ CREATE TABLE IF NOT EXISTS nemotron_it_requests (
     updated_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS ix_nemotron_it_requests_incident ON nemotron_it_requests(incident_id, id);
+CREATE TABLE IF NOT EXISTS workspace_triage_links (
+    request_id INTEGER PRIMARY KEY REFERENCES it_requests(id),
+    triage_id INTEGER NOT NULL UNIQUE REFERENCES nemotron_it_requests(id)
+);
 """
 
 

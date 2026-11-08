@@ -18,7 +18,7 @@ from ..security import current_user, require_admin
 from ..services import add_event, get_incident_or_404, next_incident_code
 from . import agent, store
 from .client import ProviderError
-from .draft import ground
+from .draft import ground, task_fields
 
 log = logging.getLogger("vigil.it_triage")
 router = APIRouter(tags=["it-requests"])
@@ -33,8 +33,12 @@ class ITRequestIn(BaseModel):
 def _run_triage(conn, rid: int, user: dict) -> dict:
     req = store.get(conn, rid)
     incident = get_incident_or_404(conn, req["incident_id"])
-    conn.execute("UPDATE nemotron_it_requests SET triage_status='running', triage_error=NULL, attempts=attempts+1, updated_at=? "
-                 "WHERE id=?", (now(), rid))
+    started = conn.execute(
+        "UPDATE nemotron_it_requests SET triage_status='running', triage_error=NULL, attempts=attempts+1, updated_at=? "
+        "WHERE id=? AND triage_status!='running'", (now(), rid),
+    )
+    if not started.rowcount:
+        raise HTTPException(409, "Triage is already running for this request")
     conn.commit()  # the saved request stays visible even if the model call below fails
     try:
         result = agent.run(conn, incident, req)
@@ -44,13 +48,32 @@ def _run_triage(conn, rid: int, user: dict) -> dict:
                       validation_json=?, updated_at=? WHERE id=?""",
             (result["provider"], result["model"], json.dumps(result["tool_calls"], default=str), json.dumps(draft),
              json.dumps(notes), now(), rid))
+        workspace = row(conn.execute(
+            """SELECT r.id, r.task_id, m.matter_code, m.deadline_at FROM workspace_triage_links l
+               JOIN it_requests r ON r.id = l.request_id JOIN matters m ON m.id = r.matter_id
+               WHERE l.triage_id = ?""", (rid,),
+        ))
+        if workspace and not workspace["task_id"]:
+            task = task_fields(draft)
+            ts = now()
+            task_id = conn.execute(
+                """INSERT INTO tasks (incident_id, title, owner_label, priority, due_at, source,
+                                      evidence_refs_json, created_by, created_at, updated_at)
+                   VALUES (?, ?, 'On-call IT', ?, ?, ?, ?, ?, ?, ?)""",
+                (incident["id"], task["title"], task["priority"], workspace["deadline_at"],
+                 "ai" if result["provider"] == "nemotron" else "manual", json.dumps(task["evidence_refs"]),
+                 req["submitted_by"], ts, ts),
+            ).lastrowid
+            conn.execute("UPDATE it_requests SET task_id = ? WHERE id = ?", (task_id, workspace["id"]))
         label = "Nemotron (live)" if result["provider"] == "nemotron" else "FIXTURE (not live AI)"
         add_event(conn, incident["id"], "it_task_drafted", f"IT task drafted by {label}: {draft['title']}",
                   user["id"], {"it_request_id": rid, "provider": result["provider"]})
     except ProviderError as exc:
+        conn.rollback()
         log.warning("Nemotron triage failed for request %s: %s | %s", rid, exc.public, exc.detail)
         _fail(conn, rid, incident["id"], user, exc.public)
     except Exception:  # never lose the request or leave it 'running'
+        conn.rollback()
         log.exception("IT triage crashed for request %s", rid)
         _fail(conn, rid, incident["id"], user, "Triage failed unexpectedly.")
     return store.payload(store.get(conn, rid))

@@ -16,3 +16,4 @@ frontend/dist/
 *.tsbuildinfo
 .env.*
 !.env.example
+/Vigil/

@@ -56,9 +56,9 @@ Example responses for every screen are in `backend/fixtures/api/`. They are gene
 ### Filing help and ownership
 
 - `POST /api/incidents/{id}/requests` accepts `{matter_code, body}` from a signed-in litigation responder. It returns the incident snapshot with `request_id` and `request_status`. Repeating the same incident, matter, and requester returns the existing request.
-- The incident snapshot includes `requests[]` with `id`, `matter_code`, `requester_id`, `body`, `created_at`, `task_id`, and `status` (`saved`, `task_ready`, or `claimed`). The current local flow creates a practice task. For integration, route the committed request ID to Nemotron and link its validated task through `it_requests.task_id` before Photon sends.
+- The incident snapshot includes `requests[]` with `id`, `matter_code`, `requester_id`, `body`, `created_at`, `task_id`, `triage_id`, `triage_status`, `triage_error`, `provider`, and `status` (`saved`, `task_ready`, or `claimed`). The saved request runs Nemotron triage (or the labeled fixture provider) and links the resulting task. Use `triage_id` with the triage retry endpoint after a provider failure.
 - `POST /api/incidents/{id}/tasks/{task_id}/claim` returns the incident snapshot. An active `IT lead` or `it_on_call` responder can claim a linked task. Repeating the claim as its owner succeeds. A competing claim returns `409`.
-- Photon should call `app.services.claim_it_task(conn, incident_id, task_id, actor_id)` with the verified sender's mapped Vigil user ID. The caller commits or rolls back the task and timeline update together.
+- To alert on a filing task, call `POST /api/incidents/{id}/notify` with `{task_id, recipient_user_id, channel: "imessage"}`. The selected recipient must be an active, consenting IT responder. The signed reply `TAKE <task_id>` and the browser claim both use `app.task_claims.claim_task`. The caller commits or rolls back the task and timeline update together.
 See `fixtures/api/incident_full.json`.
 ```
 incident        {id, code, title, status, severity, category, summary, detected_at, source, created_by_name, created_at, updated_at}

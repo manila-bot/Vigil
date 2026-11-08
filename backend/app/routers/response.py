@@ -96,11 +96,20 @@ def approve(incident_id: int, body: ApproveIn, user=Depends(current_user), conn=
 
 @router.post("/notify")
 def notify(incident_id: int, body: NotifyIn, user=Depends(current_user), conn=Depends(get_db)):
+    conn.execute("BEGIN IMMEDIATE")
     inc = get_incident_or_404(conn, incident_id)
     run = row(conn.execute(
         "SELECT * FROM triage_runs WHERE incident_id = ? AND status = 'approved' ORDER BY id DESC LIMIT 1",
         (incident_id,)))
-    if not run:
+    if body.task_id is not None:
+        task = row(conn.execute(
+            """SELECT t.id, t.owner_user_id, t.status FROM tasks t JOIN it_requests r ON r.task_id = t.id
+               WHERE t.id = ? AND t.incident_id = ? AND r.incident_id = t.incident_id""",
+            (body.task_id, incident_id),
+        ))
+        if not task:
+            raise HTTPException(404, "IT request task not found")
+    elif not run:
         raise HTTPException(409, "Approve an AI triage draft before sending an external alert")
     recipient = row(conn.execute("SELECT * FROM users WHERE id = ? AND active = 1", (body.recipient_user_id,)))
     if not recipient:
@@ -108,7 +117,14 @@ def notify(incident_id: int, body: NotifyIn, user=Depends(current_user), conn=De
     if not recipient["alert_opt_in"] or not recipient["phone"]:
         raise HTTPException(422, "Recipient has not consented to phone alerts (admin sets phone + opt-in)")
 
-    key = f"incident:{incident_id}:triage:{run['id']}:user:{recipient['id']}:{body.channel}"
+    if body.task_id is not None:
+        if (recipient["role"] != "responder"
+                or (recipient["team_role"] or "").strip().lower() not in {"it lead", "it_on_call"}
+                or body.channel != "imessage"):
+            raise HTTPException(422, "Filing recovery alerts require a consenting on-call IT responder and iMessage")
+        key = f"incident:{incident_id}:task:{body.task_id}:user:{recipient['id']}:{body.channel}"
+    else:
+        key = f"incident:{incident_id}:triage:{run['id']}:user:{recipient['id']}:{body.channel}"
     existing = row(conn.execute("SELECT * FROM notifications WHERE idempotency_key = ?", (key,)))
     if existing and existing["send_status"] != "failed":
         # Already sent or outcome unknown: never resend blindly.
@@ -123,6 +139,10 @@ def notify(incident_id: int, body: NotifyIn, user=Depends(current_user), conn=De
 
     msg = (f"VIGIL ALERT {inc['code']}: incident response activated. "
            "Sign in to Vigil for details. Reply ACK to acknowledge.")  # generic: no client or case details
+    if body.task_id is not None:
+        if inc["status"] == "closed" or task["owner_user_id"] is not None or task["status"] != "open":
+            raise HTTPException(409, "This task is no longer waiting for IT")
+        msg = f"VIGIL ALERT {inc['code']}: IT help is needed. Reply TAKE {body.task_id} to claim. Open Vigil for details."
     ts = now()
     if existing:  # previous attempt definitely failed -> retry on the same row
         nid = existing["id"]
@@ -132,7 +152,7 @@ def notify(incident_id: int, body: NotifyIn, user=Depends(current_user), conn=De
             """INSERT INTO notifications (incident_id, triage_run_id, idempotency_key, channel, recipient_user_id,
                                           recipient_label, body, provider, requested_by, created_at, updated_at)
                VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
-            (incident_id, run["id"], key, body.channel, recipient["id"],
+            (incident_id, run["id"] if body.task_id is None else None, key, body.channel, recipient["id"],
              f"{recipient['name']} ({mask_phone(recipient['phone'])})", msg,
              "photon" if photon.config.PHOTON_ENABLED else "stub", user["id"], ts, ts)).lastrowid
     conn.commit()  # claim the idempotency key before calling the provider
@@ -165,6 +185,8 @@ def acknowledge(incident_id: int, notification_id: int, user=Depends(current_use
     n = row(conn.execute("SELECT * FROM notifications WHERE id = ? AND incident_id = ?", (notification_id, incident_id)))
     if not n:
         raise HTTPException(404, "Notification not found")
+    if user["role"] != "admin" and n["recipient_user_id"] != user["id"]:
+        raise HTTPException(403, "Only the recipient or an admin can record acknowledgment")
     if not n["acknowledged_at"]:
         conn.execute("UPDATE notifications SET acknowledged_at=?, updated_at=? WHERE id=?", (now(), now(), n["id"]))
         add_event(conn, incident_id, "alert_acknowledged", f"Alert acknowledged by {n['recipient_label']} "
