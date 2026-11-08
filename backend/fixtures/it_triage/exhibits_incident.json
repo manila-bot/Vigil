@@ -1,0 +1,31 @@
+{
+  "_note": "SIMULATED. Fictional people, matter and files for the Vigil IT-help demo.",
+  "sample_request": {"body": "I can't open the exhibits", "requester_label": "Dana Ortiz (Litigation, fictional)"},
+  "incident": {
+    "title": "[SIMULATED] Filing exhibits locked on the litigation document drive",
+    "category": "ransomware",
+    "summary": "Exhibit files for an active court filing were renamed with an unfamiliar extension and won't open."
+  },
+  "matter": {
+    "matter_code": "LIT-4417",
+    "client_label": "Meridian Storage Co. (fictional)",
+    "title": "Ortiz Freight v. Meridian Storage: summary judgment filing",
+    "practice_area": "Litigation",
+    "lead_name": "Dana Ortiz (fictional)",
+    "lead_role": "Litigation lead",
+    "deadline_local": "2026-11-08T14:00",
+    "deadline_label": "court filing",
+    "path_prefix": "/dms/matters/LIT-4417/"
+  },
+  "evidence": [
+    {"kind": "user_report", "certainty": "observed",
+     "description": "Lawyer reports the filing exhibits won't open on the litigation document drive (L:)."},
+    {"kind": "file_rename_burst", "certainty": "confirmed",
+     "description": "IT verified 14 exhibit files in /dms/matters/LIT-4417/Exhibits renamed to .vgl0ck and unreadable."}
+  ],
+  "scope": [
+    {"system": "Litigation document drive (L:)", "data_category": "Filing exhibits (LIT-4417)",
+     "availability": "locked", "copying": "unknown", "certainty": "confirmed",
+     "notes": "Working copies inaccessible. Backups not yet checked. Copying not verified."}
+  ]
+}
