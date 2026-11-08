@@ -48,7 +48,7 @@ def _run_triage(conn, rid: int, user: dict) -> dict:
         add_event(conn, incident["id"], "it_task_drafted", f"IT task drafted by {label}: {draft['title']}",
                   user["id"], {"it_request_id": rid, "provider": result["provider"]})
     except ProviderError as exc:
-        log.warning("Nemotron triage failed for request %s: %s", rid, exc.detail)
+        log.warning("Nemotron triage failed for request %s: %s | %s", rid, exc.public, exc.detail)
         _fail(conn, rid, incident["id"], user, exc.public)
     except Exception:  # never lose the request or leave it 'running'
         log.exception("IT triage crashed for request %s", rid)

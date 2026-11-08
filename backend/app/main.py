@@ -8,6 +8,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from . import config
 from .db import connect, init_db, now
 from .it_triage import router as it_triage_router
+from .it_triage.client import live_enabled as it_live
 from .it_triage.store import ensure_schema as ensure_it_schema
 from .routers import auth, demo, incidents, response, users
 from .security import current_user
@@ -56,7 +57,7 @@ def system_status(user=Depends(current_user)):
     """What's live vs simulated — shown in the UI so nobody mistakes a mock for a real send."""
     return {
         "providers": {
-            "nemotron": "live" if (config.NEMOTRON_ENABLED and config.NVIDIA_API_KEY) else "disabled (fixture/mock triage)",
+            "nemotron": f"live ({config.NEMOTRON_PROVIDER})" if it_live() else "disabled (fixture/mock triage)",
             "photon": "live" if config.PHOTON_ENABLED else "disabled (simulated alerts)",
         },
         "isolation": "Vigil uses its own accounts and database and does not depend on firm email, SSO or file "

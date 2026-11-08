@@ -1,6 +1,6 @@
 """Multi-step Nemotron workflow: saved request -> tool calls (backend-executed, incident-scoped)
 -> JSON draft -> server-side grounding. Falls back to a clearly labeled FIXTURE provider when
-live Nemotron isn't configured (VIGIL_NEMOTRON_ENABLED=1 + NVIDIA_API_KEY)."""
+live Nemotron isn't configured (VIGIL_NEMOTRON_ENABLED=1 + the selected provider's key)."""
 import json
 import re
 
@@ -102,7 +102,7 @@ def run_live(conn, incident, request) -> dict:
             draft = ModelDraft.model_validate(_parse_json(client.chat(messages).get("content") or ""))
         except (ValueError, ValidationError) as exc2:
             raise client.ProviderError("Nemotron's draft didn't match the task format.", str(exc2))
-    return {"provider": "nemotron", "model": config.NEMOTRON_MODEL, "tool_calls": log, "model_draft": draft,
+    return {"provider": "nemotron", "model": client.describe(), "tool_calls": log, "model_draft": draft,
             "evidence": results["get_incident_evidence"], "matters": results["get_affected_matters"]}
 
 
