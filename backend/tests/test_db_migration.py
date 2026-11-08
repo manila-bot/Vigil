@@ -30,3 +30,28 @@ def test_old_it_requests_table_is_moved_aside(tmp_path, monkeypatch):
     iid = conn.execute("INSERT INTO incidents (code, title, detected_at, source, created_at, updated_at) "
                        "VALUES ('VIG-0001', 't', ?, 'manual', ?, ?)", (ts, ts, ts)).lastrowid
     assert services.incident_detail(conn, iid)["requests"] == []
+
+
+def test_demo_reset_works_after_migration(tmp_path, monkeypatch):
+    from app import config, db
+    from app.it_triage import store
+    from app.routers import demo
+    monkeypatch.setattr(config, "DATA_DIR", tmp_path)
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "old.db")
+    old = sqlite3.connect(tmp_path / "old.db")
+    old.executescript("""
+        CREATE TABLE incidents (id INTEGER PRIMARY KEY, code TEXT, title TEXT, detected_at TEXT, source TEXT,
+                                created_at TEXT, updated_at TEXT);
+        INSERT INTO incidents (id, code, title, detected_at, source, created_at, updated_at)
+            VALUES (1, 'VIG-0001', 't', 'x', 'manual', 'x', 'x');
+        CREATE TABLE it_requests (id INTEGER PRIMARY KEY, incident_id INTEGER NOT NULL REFERENCES incidents(id),
+                                  body TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
+        INSERT INTO it_requests VALUES (1, 1, 'old draft', 'x', 'x');
+    """)
+    old.commit()
+    old.close()
+    db.init_db()
+    conn = db.connect()
+    store.ensure_schema(conn)
+    assert demo.reset(admin={"id": 1}, conn=conn) == {"ok": True}
+    assert conn.execute("SELECT COUNT(*) FROM incidents").fetchone()[0] == 0
