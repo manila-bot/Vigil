@@ -11,9 +11,13 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AccessRouteImport } from './routes/access'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as ItRouteImport } from './routes/it'
+import { Route as LawyerRouteImport } from './routes/lawyer'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as IncidentsIndexRouteImport } from './routes/incidents.index'
 import { Route as IncidentsIdRouteImport } from './routes/incidents.$id'
+import { Route as SignInRoleRouteImport } from './routes/sign-in.$role'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -23,6 +27,21 @@ const IndexRoute = IndexRouteImport.update({
 const AccessRoute = AccessRouteImport.update({
   id: '/access',
   path: '/access',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ItRoute = ItRouteImport.update({
+  id: '/it',
+  path: '/it',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LawyerRoute = LawyerRouteImport.update({
+  id: '/lawyer',
+  path: '/lawyer',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -40,42 +59,91 @@ const IncidentsIdRoute = IncidentsIdRouteImport.update({
   path: '/incidents/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SignInRoleRoute = SignInRoleRouteImport.update({
+  id: '/sign-in/$role',
+  path: '/sign-in/$role',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/access': typeof AccessRoute
+  '/admin': typeof AdminRoute
+  '/it': typeof ItRoute
+  '/lawyer': typeof LawyerRoute
   '/login': typeof LoginRoute
   '/incidents/$id': typeof IncidentsIdRoute
+  '/sign-in/$role': typeof SignInRoleRoute
   '/incidents/': typeof IncidentsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/access': typeof AccessRoute
+  '/admin': typeof AdminRoute
+  '/it': typeof ItRoute
+  '/lawyer': typeof LawyerRoute
   '/login': typeof LoginRoute
   '/incidents/$id': typeof IncidentsIdRoute
+  '/sign-in/$role': typeof SignInRoleRoute
   '/incidents': typeof IncidentsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/access': typeof AccessRoute
+  '/admin': typeof AdminRoute
+  '/it': typeof ItRoute
+  '/lawyer': typeof LawyerRoute
   '/login': typeof LoginRoute
   '/incidents/$id': typeof IncidentsIdRoute
+  '/sign-in/$role': typeof SignInRoleRoute
   '/incidents/': typeof IncidentsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/access' | '/login' | '/incidents/$id' | '/incidents/'
+  fullPaths:
+    | '/'
+    | '/access'
+    | '/admin'
+    | '/it'
+    | '/lawyer'
+    | '/login'
+    | '/incidents/$id'
+    | '/sign-in/$role'
+    | '/incidents/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/access' | '/login' | '/incidents/$id' | '/incidents'
-  id: '__root__' | '/' | '/access' | '/login' | '/incidents/$id' | '/incidents/'
+  to:
+    | '/'
+    | '/access'
+    | '/admin'
+    | '/it'
+    | '/lawyer'
+    | '/login'
+    | '/incidents/$id'
+    | '/sign-in/$role'
+    | '/incidents'
+  id:
+    | '__root__'
+    | '/'
+    | '/access'
+    | '/admin'
+    | '/it'
+    | '/lawyer'
+    | '/login'
+    | '/incidents/$id'
+    | '/sign-in/$role'
+    | '/incidents/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AccessRoute: typeof AccessRoute
+  AdminRoute: typeof AdminRoute
+  ItRoute: typeof ItRoute
+  LawyerRoute: typeof LawyerRoute
   LoginRoute: typeof LoginRoute
   IncidentsIdRoute: typeof IncidentsIdRoute
+  SignInRoleRoute: typeof SignInRoleRoute
   IncidentsIndexRoute: typeof IncidentsIndexRoute
 }
 
@@ -93,6 +161,27 @@ declare module '@tanstack/react-router' {
       path: '/access'
       fullPath: '/access'
       preLoaderRoute: typeof AccessRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/it': {
+      id: '/it'
+      path: '/it'
+      fullPath: '/it'
+      preLoaderRoute: typeof ItRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lawyer': {
+      id: '/lawyer'
+      path: '/lawyer'
+      fullPath: '/lawyer'
+      preLoaderRoute: typeof LawyerRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -116,14 +205,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IncidentsIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/sign-in/$role': {
+      id: '/sign-in/$role'
+      path: '/sign-in/$role'
+      fullPath: '/sign-in/$role'
+      preLoaderRoute: typeof SignInRoleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AccessRoute: AccessRoute,
+  AdminRoute: AdminRoute,
+  ItRoute: ItRoute,
+  LawyerRoute: LawyerRoute,
   LoginRoute: LoginRoute,
   IncidentsIdRoute: IncidentsIdRoute,
+  SignInRoleRoute: SignInRoleRoute,
   IncidentsIndexRoute: IncidentsIndexRoute,
 }
 export const routeTree = rootRouteImport

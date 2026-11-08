@@ -4,15 +4,17 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
   HeadContent,
   Scripts,
   type ErrorComponentProps,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 
-import { Toaster } from "@/components/ui/sonner";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { VigilProvider } from "../lib/vigil-store";
+import { AppShell } from "../components/vigil-ui";
 
 function NotFoundComponent() {
   return (
@@ -82,23 +84,25 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Vigil — Ransomware Response for Law Firms" },
-      { name: "description", content: "Ransomware response command center for law firms: matters, deadlines, evidence and IT response." },
-      { property: "og:title", content: "Vigil — Ransomware Response for Law Firms" },
-      { property: "og:description", content: "Ransomware response command center for law firms." },
+      { title: "Vigil" },
+      { name: "description", content: "Cyber defense for law firms." },
+      { property: "og:title", content: "Vigil" },
+      { property: "og:description", content: "Cyber defense for law firms." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:site", content: "@Lovable" },
     ],
     links: [
-      { rel: "preconnect", href: "https://fonts.googleapis.com" },
-      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" },
       {
         rel: "stylesheet",
         href: appCss,
       },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      { rel: "preconnect", href: "https://fonts.googleapis.com" },
+      {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=JetBrains+Mono:wght@400&family=Manrope:wght@400;500;600&display=swap",
+      },
     ],
   }),
   shellComponent: RootShell,
@@ -109,7 +113,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en">
       <head>
         <HeadContent />
       </head>
@@ -123,12 +127,22 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const fullWorkspace =
+    pathname === "/access" || pathname === "/login" || pathname.startsWith("/incidents");
 
   return (
     <QueryClientProvider client={queryClient}>
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
-      <Toaster theme="dark" />
+      <VigilProvider>
+        {fullWorkspace ? (
+          <Outlet />
+        ) : (
+          <AppShell>
+            <Outlet />
+          </AppShell>
+        )}
+      </VigilProvider>
     </QueryClientProvider>
   );
 }
