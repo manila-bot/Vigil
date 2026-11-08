@@ -9,6 +9,7 @@ export default function Access() {
   const [users, setUsers] = useState<any[] | null>(null);
   const [form, setForm] = useState(EMPTY);
   const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState<any | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const me = session.user;
 
@@ -71,6 +72,24 @@ export default function Access() {
         <div className="col-span-full"><button className="btn-primary">Add team member</button></div>
       </form>
 
+      {editing && (
+        <form className="card mb-6 grid gap-3 p-5" onSubmit={async (e) => {
+          e.preventDefault();
+          try {
+            await patch(`/users/${editing.id}`, {
+              team_role: editing.team_role, alert_opt_in: editing.alert_opt_in,
+              ...(editing.phone ? { phone: editing.phone } : {}),
+            });
+            setEditing(null); load();
+          } catch (err: any) { setError(err.message); }
+        }}>
+          <h2 className="font-semibold">Configure {editing.name}</h2>
+          <label className="label">Team role<input className="input" value={editing.team_role} onChange={(e) => setEditing({ ...editing, team_role: e.target.value })} /></label>
+          <label className="label">New phone (leave blank to keep {editing.phone_masked ?? "current phone"})<input className="input" value={editing.phone} onChange={(e) => setEditing({ ...editing, phone: e.target.value })} /></label>
+          <label><input type="checkbox" checked={editing.alert_opt_in} onChange={(e) => setEditing({ ...editing, alert_opt_in: e.target.checked })} /> Consented to phone alerts</label>
+          <div><button className="btn-primary">Save</button> <button type="button" className="btn-ghost" onClick={() => setEditing(null)}>Cancel</button></div>
+        </form>
+      )}
       <section className="card overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-panel2 text-left text-xs uppercase tracking-wide text-muted">
@@ -84,6 +103,7 @@ export default function Access() {
                 <td className="px-4 py-3">{u.alert_opt_in ? <Badge value={`Yes · ${u.phone_masked ?? "no phone"}`} tone="ok" /> : <Badge value="No" tone="neutral" />}</td>
                 <td className="px-4 py-3"><Badge value={u.active ? "Active" : "Deactivated"} tone={u.active ? "ok" : "neutral"} /></td>
                 <td className="px-4 py-3 text-right">
+                  <button className="btn-ghost" onClick={() => setEditing({ ...u, team_role: u.team_role ?? "", phone: "" })}>Configure</button>
                   {u.id !== me.id && (
                     <button className={u.active ? "btn-ghost text-red-300" : "btn-ghost"} onClick={() => update(u.id, { active: !u.active })}>
                       {u.active ? "Deactivate" : "Reactivate"}

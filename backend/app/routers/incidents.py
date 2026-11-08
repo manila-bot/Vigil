@@ -7,7 +7,11 @@ from ..db import get_db, now, row, rows
 from ..schemas import (EvidenceCreate, IncidentCreate, IncidentUpdate, MessageCreate, ScopeCreate, ScopeUpdate,
                        ITRequestCreate, TaskCreate, TaskUpdate)
 from ..security import current_user
-from ..services import add_event, claim_it_task, get_incident_or_404, incident_detail, local_time_label, next_incident_code
+from ..services import add_event, get_incident_or_404, incident_detail, local_time_label, next_incident_code
+
+from ..task_claims import claim_task as claim_task_service
+from ..it_triage import store as it_triage_store
+from ..it_triage.router import _run_triage
 
 router = APIRouter(tags=["incidents"])
 
@@ -210,21 +214,11 @@ def request_it_help(incident_id: int, body: ITRequestCreate, user=Depends(curren
             "INSERT INTO it_requests (incident_id, matter_id, requester_id, body, created_at) VALUES (?,?,?,?,?)",
             (incident_id, matter["id"], user["id"], message, ts),
         ).lastrowid
-        evidence_refs = [e["ref"] for e in rows(conn.execute(
-            """SELECT ref FROM evidence WHERE incident_id = ? AND kind = 'file_open_failed'
-               AND json_extract(detail_json, '$.path') LIKE ? ORDER BY id""",
-            (incident_id, f"/dms/matters/{body.matter_code}/%"),
-        ))]
-        # Local practice handoff. The integrated router will consume the saved request ID.
-        task_id = conn.execute(
-            """INSERT INTO tasks (incident_id, title, priority, due_at, evidence_refs_json, created_by, created_at, updated_at)
-               VALUES (?, ?, 'critical', ?, ?, ?, ?, ?)""",
-            (incident_id, f"Find and verify a clean copy of the {body.matter_code} filing exhibits",
-             matter["deadline_at"], json.dumps(evidence_refs), user["id"], ts, ts),
-        ).lastrowid
-        conn.execute("UPDATE it_requests SET task_id = ? WHERE id = ?", (task_id, request_id))
+        triage_id = it_triage_store.create(conn, incident_id, message, user["name"], user["id"])
+        conn.execute("INSERT INTO workspace_triage_links VALUES (?, ?)", (request_id, triage_id))
         add_event(conn, incident_id, "it_help_requested", f"IT help requested for {body.matter_code}", user["id"],
-                  {"request_id": request_id, "task_id": task_id, "routing": "practice"})
+                  {"request_id": request_id, "it_request_id": triage_id})
+        _run_triage(conn, triage_id, user)
 
     detail = incident_detail(conn, incident_id)
     status = next(item["status"] for item in detail["requests"] if item["id"] == request_id)
@@ -233,7 +227,7 @@ def request_it_help(incident_id: int, body: ITRequestCreate, user=Depends(curren
 
 @router.post("/incidents/{incident_id}/tasks/{task_id}/claim")
 def claim_task(incident_id: int, task_id: int, user=Depends(current_user), conn=Depends(get_db)):
-    claim_it_task(conn, incident_id, task_id, user["id"])
+    claim_task_service(conn, incident_id, task_id, user)
     return incident_detail(conn, incident_id)
 
 

@@ -113,7 +113,7 @@ export default function Incident() {
 
 function ITRequestForm({ matter, requests, act, onSaved, closed }: {
   matter: { matter_code: string; deadline_local: string };
-  requests: { id: number; matter_code: string; requester_id: number; status: string }[];
+  requests: { id: number; matter_code: string; requester_id: number; status: string; provider?: string; triage_error?: string }[];
   act: Function;
   onSaved: () => void;
   closed: boolean;
@@ -127,7 +127,8 @@ function ITRequestForm({ matter, requests, act, onSaved, closed }: {
   if (saved) return <section className="card mb-6 p-5">
     <p className="font-semibold">IT request #{saved.id} saved</p>
     <p className="text-sm text-muted">{saved.status === "claimed" ? "Claimed by IT" :
-      saved.status === "task_ready" ? "Practice task · waiting for IT" : "Waiting for routing"}</p>
+      saved.status === "task_ready" ? (saved.provider === "nemotron" ? "Waiting for IT" : "Practice task · waiting for IT") :
+      saved.triage_error ?? "Waiting for routing"}</p>
     <button type="button" className="btn-ghost mt-2" onClick={onSaved}>View response room</button>
   </section>;
 
@@ -147,7 +148,6 @@ function ITRequestForm({ matter, requests, act, onSaved, closed }: {
     <textarea id="it-request" className="input w-full" value={body} maxLength={1000} required
       onChange={(event) => setBody(event.target.value)} />
     <button className="btn-primary" disabled={busy || !body.trim()}>Request IT help</button>
-    <p className="text-xs text-muted">Creates a local practice task. Phone delivery is pending integration.</p>
   </form>;
 }
 
@@ -343,11 +343,11 @@ function TasksCard({ data, act }: { data: any; act: Function }) {
               disabled={requestTask && t.owner_user_id !== user?.id}
               onChange={(e) => act("PATCH", `/tasks/${t.id}`, { status: e.target.checked ? "done" : "open" })} />
             <div className="flex-1">
-              <div className={t.status === "done" ? "text-faint line-through" : "font-medium"}>{t.title}</div>
+              <div className={t.status === "done" ? "text-faint line-through" : "font-medium"}>#{t.id} · {t.title}</div>
               <div className="mt-0.5 text-xs text-muted">
                 {t.owner_name ?? t.owner_label ?? "Unassigned"} · due {fmtTime(t.due_at)}
                 {t.evidence_refs.length > 0 && <> · evidence {t.evidence_refs.map((r: string) => <a key={r} href={`#${r}`} className="ml-1 font-mono text-accent underline">{r}</a>)}</>}
-                {t.source === "ai" && <> · AI-drafted, approved by {t.approved_by_name}</>}
+                {t.source === "ai" && <> · AI-drafted{t.approved_by_name && `, approved by ${t.approved_by_name}`}</>}
                 {requestTask && <> · {t.owner_user_id ? "Claimed by IT" : "Waiting for IT"}</>}
               </div>
             </div>

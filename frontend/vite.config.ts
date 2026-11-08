@@ -5,5 +5,5 @@ import react from "@vitejs/plugin-react";
 // `npm run dev:mock` -> uses sample data in src/mocks (no backend needed)
 export default defineConfig({
   plugins: [react()],
-  server: { port: 5173, proxy: { "/api": "http://localhost:8000" } },
+  server: { host: "127.0.0.1", port: 5173, strictPort: true, proxy: { "/api": "http://127.0.0.1:8000" } },
 });

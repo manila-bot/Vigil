@@ -10,7 +10,7 @@ from .db import connect, init_db, now
 from .it_triage import router as it_triage_router
 from .it_triage.client import live_enabled as it_live
 from .it_triage.store import ensure_schema as ensure_it_schema
-from .routers import auth, demo, incidents, response, users
+from .routers import auth, demo, incidents, photon_webhook, response, users
 from .security import current_user
 
 
@@ -73,6 +73,7 @@ api.include_router(incidents.router)
 api.include_router(response.router)
 api.include_router(demo.router)
 api.include_router(it_triage_router.router)
+api.include_router(photon_webhook.router)
 app.include_router(api)
 
 

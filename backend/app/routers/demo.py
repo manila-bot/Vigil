@@ -87,7 +87,8 @@ def simulate(body: SimulateIn = SimulateIn(), user=Depends(current_user), conn=D
 @router.post("/reset")
 def reset(admin=Depends(require_admin), conn=Depends(get_db)):
     """Wipe incident data (keeps users and matters). Admin only — for re-running the demo."""
-    for table in ("notifications", "it_requests", "tasks", "triage_runs", "messages", "timeline_events", "scope_items",
+    for table in ("notifications", "workspace_triage_links", "nemotron_it_requests", "it_requests", "tasks",
+                  "triage_runs", "messages", "timeline_events", "scope_items",
                   "evidence", "incidents"):
         conn.execute(f"DELETE FROM {table}")
     load_matters(conn)  # refresh deadlines to today

@@ -132,6 +132,7 @@ class ApproveIn(BaseModel):
 class NotifyIn(BaseModel):
     recipient_user_id: int
     channel: Literal["imessage", "sms"] = "imessage"
+    task_id: int | None = None
 
 
 class ITRequestCreate(BaseModel):
