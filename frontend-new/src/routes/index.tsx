@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { RadarShield } from "@/components/RadarShield";
 
 import { Sparkline } from "@/components/Sparkline";
@@ -54,12 +55,22 @@ const ROLES = [
 function Overview() {
   const v = useVigil();
   const active = Boolean(v.detail);
+  const [demoScan, setDemoScan] = useState<"ready" | "scanning" | "alert">("ready");
+  const radarAlert = active || demoScan === "alert";
+
+  useEffect(() => {
+    if (demoScan !== "scanning") return;
+    const timer = window.setTimeout(() => setDemoScan("alert"), 10_000);
+    return () => window.clearTimeout(timer);
+  }, [demoScan]);
+
   const open = v.detail?.requests.filter((r) => r.status !== "done").length ?? 0;
   const unowned =
     v.detail?.requests.filter((r) => !r.owner_user_id && r.status !== "done").length ?? 0;
 
   return (
     <div className="space-y-5">
+      {radarAlert && <div aria-hidden="true" className="radar-screen-alert" />}
       <div className="grid gap-5 lg:grid-cols-[1fr_1.4fr]">
         <div className="flex flex-col justify-center">
           <h1 className="text-5xl font-semibold leading-[1.05] tracking-tight">
@@ -89,7 +100,22 @@ function Overview() {
           </div>
         </div>
         <div className="relative min-h-[420px] overflow-hidden border bg-card/40">
-          <RadarShield underAttack={active} />
+          <RadarShield underAttack={radarAlert} />
+          <button
+            type="button"
+            aria-label="Start demo radar scan"
+            aria-disabled={radarAlert || demoScan === "scanning"}
+            onClick={() => {
+              if (!radarAlert && demoScan === "ready") setDemoScan("scanning");
+            }}
+            className="absolute inset-0 w-full cursor-pointer focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary aria-disabled:cursor-default"
+          />
+          <span
+            role="status"
+            className="pointer-events-none absolute bottom-4 left-4 font-mono text-[10px] uppercase tracking-widest"
+          >
+            {radarAlert ? "" : demoScan === "scanning" ? "Scanning…" : "Tap radar to scan"}
+          </span>
         </div>
       </div>
 
