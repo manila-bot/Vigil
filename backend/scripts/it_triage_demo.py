@@ -5,7 +5,8 @@
     python scripts/it_triage_demo.py --rerun-deadline 15:30 # then move the deadline and rerun triage
     python scripts/it_triage_demo.py --fail                # simulate Nemotron being down, then retry
 
-Live Nemotron is used when backend/.env has VIGIL_NEMOTRON_ENABLED=1 and NVIDIA_API_KEY=nvapi-...
+Live Nemotron is used when backend/.env has VIGIL_NEMOTRON_ENABLED=1 plus the key for NEMOTRON_PROVIDER
+(nvidia -> NVIDIA_API_KEY, openrouter -> OPENROUTER_API_KEY).
 Otherwise it runs the FIXTURE provider. The output always says which one ran.
 """
 import argparse
@@ -39,7 +40,7 @@ BAR = "─" * 72
 
 def show(d):
     t = d["triage"]
-    src = (f"LIVE NEMOTRON · model {t['model']}" if t["is_live_nemotron"]
+    src = (f"LIVE NEMOTRON · {t['model']}" if t["is_live_nemotron"]
            else "FIXTURE (not a live model response)" if t["provider"] == "fixture" else t["provider"] or "—")
     print(BAR)
     print(f"Request #{d['id']} (saved {d['created_at']}): \"{d['body']}\"  —  {d['requester_label'] or ''}")
@@ -67,18 +68,20 @@ with TestClient(app) as c:
     req = dict(fx["sample_request"])
     if args.request:
         req["body"] = args.request
-    print(f"Demo incident {fx['incident_code']} (fictional). Live Nemotron configured: {nem.live_enabled()}")
+    print(f"Demo incident {fx['incident_code']} (fictional). Live Nemotron configured: {nem.live_enabled()}"
+          f" · provider {nem.describe()}")
 
     if args.fail:
-        real_url, real_enabled, real_key = config.NEMOTRON_BASE_URL, config.NEMOTRON_ENABLED, config.NVIDIA_API_KEY
-        config.NEMOTRON_BASE_URL, config.NEMOTRON_ENABLED = "http://127.0.0.1:9", True
-        config.NVIDIA_API_KEY = real_key or "unreachable-test"
+        real = (config.NEMOTRON_BASE_URL, config.NEMOTRON_ENABLED, config.NVIDIA_API_KEY, config.OPENROUTER_API_KEY)
+        config.NEMOTRON_BASE_URL, config.NEMOTRON_ENABLED = "http://127.0.0.1:9", True  # nothing listens here
+        config.NVIDIA_API_KEY = real[2] or "unreachable-test"
+        config.OPENROUTER_API_KEY = real[3] or "unreachable-test"
         d = c.post(f"/api/incidents/{fx['incident_id']}/it-requests", json=req).json()
         print("\n1) Provider down (simulated):")
         show(d)
         saved = c.get(f"/api/it-requests/{d['id']}").json()
         print(f"Request still visible: \"{saved['body']}\" · can retry: {saved['triage']['can_retry']}")
-        config.NEMOTRON_BASE_URL, config.NEMOTRON_ENABLED, config.NVIDIA_API_KEY = real_url, real_enabled, real_key
+        config.NEMOTRON_BASE_URL, config.NEMOTRON_ENABLED, config.NVIDIA_API_KEY, config.OPENROUTER_API_KEY = real
         print("\n2) Retry:")
         d = c.post(f"/api/it-requests/{d['id']}/triage").json()
     else:

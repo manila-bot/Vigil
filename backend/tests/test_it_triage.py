@@ -179,3 +179,78 @@ def test_requires_sign_in(client):
     client.headers.pop("Authorization")
     assert client.post(f"/api/incidents/{iid}/it-requests", json=req).status_code == 401
     assert client.get("/api/it-requests/1").status_code == 401
+
+
+# ---------------- provider selection (NVIDIA vs OpenRouter) ----------------
+
+class _Resp:
+    def __init__(self, status, payload):
+        self.status_code, self._p = status, payload
+        self.text = json.dumps(payload)
+
+    def json(self):
+        return self._p
+
+
+def _use_provider(monkeypatch, name, base, model):
+    from app import config
+    monkeypatch.setattr(config, "NEMOTRON_ENABLED", True)
+    monkeypatch.setattr(config, "NEMOTRON_PROVIDER", name)
+    monkeypatch.setattr(config, "NEMOTRON_BASE_URL", base)
+    monkeypatch.setattr(config, "NEMOTRON_MODEL", model)
+    monkeypatch.setattr(config, "NVIDIA_API_KEY", "nvapi-SECRET-NVIDIA")
+    monkeypatch.setattr(config, "OPENROUTER_API_KEY", "sk-or-SECRET-OPENROUTER")
+
+
+def test_openrouter_uses_its_own_key_url_and_model(monkeypatch):
+    from app.it_triage import client as nem
+    _use_provider(monkeypatch, "openrouter", "https://openrouter.ai/api/v1", "nvidia/nemotron-3-super-120b-a12b:free")
+    seen = {}
+
+    def fake_post(url, json=None, timeout=None, headers=None):
+        seen.update(url=url, body=json, headers=headers)
+        return _Resp(200, {"choices": [{"message": {"role": "assistant", "content": "{}"}}]})
+
+    monkeypatch.setattr(nem.httpx, "post", fake_post)
+    nem.chat([{"role": "user", "content": "hi"}], tools=[{"type": "function"}])
+    assert seen["url"] == "https://openrouter.ai/api/v1/chat/completions"
+    assert seen["body"]["model"] == "nvidia/nemotron-3-super-120b-a12b:free"
+    assert seen["body"]["tools"] and seen["body"]["tool_choice"] == "auto"
+    assert seen["headers"]["Authorization"] == "Bearer sk-or-SECRET-OPENROUTER"
+    assert "nvapi-SECRET-NVIDIA" not in json.dumps(seen)  # NVIDIA key never sent to OpenRouter
+    assert nem.live_enabled() and nem.describe() == "openrouter · nvidia/nemotron-3-super-120b-a12b:free"
+
+
+def test_nvidia_provider_never_sends_openrouter_key(monkeypatch):
+    from app.it_triage import client as nem
+    _use_provider(monkeypatch, "nvidia", "https://integrate.api.nvidia.com/v1", "nvidia/nemotron-3-super-120b-a12b")
+    seen = {}
+    monkeypatch.setattr(nem.httpx, "post", lambda url, json=None, timeout=None, headers=None: (
+        seen.update(url=url, headers=headers) or _Resp(200, {"choices": [{"message": {"content": "{}"}}]})))
+    nem.chat([{"role": "user", "content": "hi"}])
+    assert seen["url"].startswith("https://integrate.api.nvidia.com/")
+    assert seen["headers"]["Authorization"] == "Bearer nvapi-SECRET-NVIDIA"
+    assert "sk-or-SECRET-OPENROUTER" not in json.dumps(seen)
+
+
+def test_openrouter_needs_its_key(monkeypatch):
+    from app import config
+    from app.it_triage import client as nem
+    _use_provider(monkeypatch, "openrouter", "https://openrouter.ai/api/v1", "m")
+    monkeypatch.setattr(config, "OPENROUTER_API_KEY", "")
+    assert nem.live_enabled() is False  # NVIDIA key alone doesn't enable OpenRouter
+
+
+def test_unavailable_free_model_surfaces_provider_error(client, monkeypatch):
+    from app.it_triage import client as nem
+    _use_provider(monkeypatch, "openrouter", "https://openrouter.ai/api/v1", "nvidia/nemotron-3-super-120b-a12b:free")
+    monkeypatch.setattr(nem.httpx, "post", lambda *a, **k: _Resp(
+        404, {"error": {"message": "No endpoints found for nvidia/nemotron-3-super-120b-a12b:free.", "code": 404}}))
+    iid, req = seed(client)
+    d = client.post(f"/api/incidents/{iid}/it-requests", json=req).json()
+    assert d["triage"]["status"] == "failed" and d["draft"] is None and d["body"]
+    assert "isn't available on OpenRouter" in d["triage"]["error"] and "404" in d["triage"]["error"]
+    try:
+        nem.chat([{"role": "user", "content": "x"}])
+    except nem.ProviderError as exc:
+        assert "No endpoints found" in exc.detail

@@ -134,4 +134,6 @@ A lawyer's "Request IT help" is **saved first**, then triaged. If triage fails, 
 - Evidence refs must exist for this incident. Unknown refs are dropped and the filing record is always cited.
 - With locked files and a deadline within 24 hours, urgency is at least **urgent**.
 
+**Provider:** `NEMOTRON_PROVIDER=nvidia` (NVIDIA API catalog, `NVIDIA_API_KEY`) or `openrouter` (`https://openrouter.ai/api/v1`, model `nvidia/nemotron-3-super-120b-a12b:free`, `OPENROUTER_API_KEY`). Each key is sent only to its own provider. `triage.model` reads like `"openrouter · nvidia/nemotron-3-super-120b-a12b:free"`.
+
 **Handoff to approval + Photon (team integration):** `app/it_triage/draft.py: task_fields(draft)` maps an approved draft to the existing `POST /incidents/{id}/tasks` body. `as_text_card(draft)` gives a plain-text version.
