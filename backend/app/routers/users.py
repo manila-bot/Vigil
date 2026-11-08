@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from ..db import get_db, now, row, rows
 from ..schemas import UserCreate, UserUpdate
-from ..security import current_user, hash_password, require_admin
+from ..security import ADMIN, RESPONDER, current_user, hash_password, require_admin
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -30,7 +30,7 @@ def _public(u: dict) -> dict:
 
 @router.get("")
 def list_users(user=Depends(current_user), conn=Depends(get_db)):
-    q = "SELECT * FROM users" + ("" if user["role"] == "admin" else " WHERE active = 1") + " ORDER BY name"
+    q = "SELECT * FROM users" + ("" if user["role"] == ADMIN else " WHERE active = 1") + " ORDER BY name"
     return [_public(u) for u in rows(conn.execute(q))]
 
 
@@ -54,7 +54,7 @@ def update_user(user_id: int, body: UserUpdate, admin=Depends(require_admin), co
     if not target:
         raise HTTPException(404, "User not found")
     changes = body.model_dump(exclude_unset=True)
-    if user_id == admin["id"] and (changes.get("active") is False or changes.get("role") == "responder"):
+    if user_id == admin["id"] and (changes.get("active") is False or changes.get("role") == RESPONDER):
         raise HTTPException(400, "You can't deactivate or demote your own account")
     if "password" in changes:
         changes["password_hash"] = hash_password(changes.pop("password"))

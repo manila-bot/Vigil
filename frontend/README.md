@@ -30,6 +30,7 @@ npm run dev        # real backend (start it first on :8000) → http://localhost
 - Always pair status colors with text (the `Badge` component does this).
 - Show **SIMULATED** wherever `is_mock`, `is_simulated` or `source: "simulated"` is set.
 - Fields and routes: `../backend/API_CONTRACT.md`. Ask the core owner before you change them.
+- **Naming:** the UI says **Team member**, but the API, database and contract still use the role value `responder` (the other level is `admin`). Only change the displayed label (see `Access.tsx`), never the stored value. A person's job ("IT lead") is the separate `team_role` field and has no effect on permissions.
 
 ## Moving to Lovable
 Lovable can't import an existing repo directly. Either keep editing this code in VS Code or Cursor, or paste these pages into Lovable as the starting point and keep `src/api/client.ts` as the only way the app calls the backend.
