@@ -65,7 +65,7 @@ export default function CommandCenter() {
           <StatTile icon={<Server className="h-6 w-6" />} label="Systems affected" value={systems.length}
             note={systems.length ? systems.join(", ") : "All systems normal"} tone={systems.length ? "critical" : "ok"} />
           <StatTile icon={<ListChecks className="h-6 w-6" />} label="Open tasks" value={data.open_tasks.length}
-            note={data.open_tasks.length ? "Assigned to responders" : "Nothing waiting"} />
+            note={data.open_tasks.length ? "Assigned to team members" : "Nothing waiting"} />
           <StatTile icon={<ShieldQuestion className="h-6 w-6" />} label="Data copying unverified" value={data.unverified_exposure_count}
             note={data.unverified_exposure_count ? "Still need to confirm" : "None outstanding"} tone={data.unverified_exposure_count ? "warning" : "ok"} />
         </div>

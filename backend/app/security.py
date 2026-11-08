@@ -14,6 +14,11 @@ from .db import get_db, now
 
 _ITERATIONS = 200_000
 
+# The two account roles. Use these names instead of typing the strings, so a typo fails loudly.
+# (The database CHECK constraint and the Literal types in schemas.py must list the same values.)
+ADMIN = "admin"
+RESPONDER = "responder"
+
 
 def hash_password(password: str) -> str:
     salt = secrets.token_bytes(16)
@@ -30,8 +35,9 @@ def verify_password(password: str, stored: str) -> bool:
         return False
 
 
-# Spend the same time on unknown emails so login doesn't reveal which accounts exist.
-_DUMMY_HASH = hash_password(secrets.token_urlsafe(16))
+# Checked against when the email is unknown, so login takes the same time either way and
+# doesn't reveal which accounts exist.
+DUMMY_HASH = hash_password(secrets.token_urlsafe(16))
 
 
 def _token_hash(token: str) -> str:
@@ -68,16 +74,18 @@ def current_user(request: Request, conn=Depends(get_db)) -> dict:
            FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ?""",
         (_token_hash(token),),
     ).fetchone()
+    # expires_at and now() are both ISO-8601 UTC strings, which sort in time order,
+    # so comparing them as text is a correct "has it expired?" check.
     if not r or not r["active"] or r["expires_at"] < now():
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Session expired or invalid")
     user = dict(r)
     user.pop("expires_at")
-    request.state.token = token
+    request.state.token = token  # kept so /auth/logout can delete this exact session
     return user
 
 
 def require_admin(user: dict = Depends(current_user)) -> dict:
-    if user["role"] != "admin":
+    if user["role"] != ADMIN:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Admin role required")
     return user
 

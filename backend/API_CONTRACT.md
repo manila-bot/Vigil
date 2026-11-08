@@ -96,3 +96,44 @@ The first card shows `urgent_deadlines[0]` (for example "2:00 PM court filing �
 | `app/triage/nemotron.py`, `triage/tools.py`, `detection/detector.py` | NVIDIA & Detection | `run(conn, incident)` returns `{provider, model, tool_calls, draft}`; the draft must validate as `schemas.TriageDraft` |
 | `app/notify/photon.py` | Photon & Submission | `send(phone, body, channel, idempotency_key)` returns `{send_status, provider, provider_message_id, raw}` |
 | `frontend/` | Lovable Frontend | builds against `fixtures/api/*.json`, then the live API |
+
+## IT help requests → Nemotron IT task (owner: NVIDIA, Person 3)
+
+A lawyer's "Request IT help" is **saved first**, then triaged. If triage fails, the request stays visible and can be retried.
+
+| Method | Path | Body | Returns |
+|---|---|---|---|
+| POST | `/incidents/{id}/it-requests` | `{body, requester_label?, run_triage?: true}` | IT request (201). Saved before the model runs. |
+| GET | `/it-requests/{rid}` | – | IT request (poll this on `/dev`) |
+| POST | `/it-requests/{rid}/triage` | – | IT request. Retry after a failure, or rerun after records change. `409` if already running. |
+| GET | `/incidents/{id}/it-requests` | – | all IT requests for the incident, newest first |
+| POST | `/demo/it-fixture` | `{deadline_local?: "2026-11-08T14:00"}` | creates the fictional "locked filing exhibits" incident: `{incident_id, incident_code, sample_request}` |
+| POST | `/demo/matters/{code}/deadline` | `{deadline_local: "2026-11-08T15:30" \| null}` (admin) | changes a fictional matter deadline, or removes it to test "unknown" |
+
+**IT request shape**
+```
+{id, incident_id, body, requester_label, created_at, updated_at,
+ triage: {status: pending|running|drafted|failed, can_retry, error, attempts,
+          provider: "nemotron"|"fixture", is_live_nemotron, model,
+          tool_calls: [{step, tool, requested_by: model|backend|fixture, scoped_to_incident, result_summary, result}],
+          validation: [str]},                 ← what the backend corrected, e.g. replaced a stale time
+ draft: null | {
+   header: "Urgent · On-call IT", title, urgency: urgent|high|normal, suggested_team,
+   issue, affected, why_urgent, first_action,
+   deadline: {known, text, due_ct: "2:00 PM CT, Sun Nov 8", due_at, matter_code, matter_title, record_ref},
+   evidence: [{ref: "EV-1"|"MATTER:LIT-4417", kind: evidence|filing_record, description, certainty}],
+   file_copying: {status: unknown|suspected|confirmed|none_observed, label, basis},
+   unknowns: [str], request_text}}
+```
+
+**Grounding rules the backend enforces**
+- Tools are read-only and always run against the request's own incident. The model can't pick another one.
+- If the model skips a tool, the backend runs it anyway and gives the model the results before it writes the draft.
+- The deadline always comes from the matter record. A time in the model's text that disagrees with the record is replaced.
+- File copying comes from records only. It stays **Unknown** unless a scope or evidence record says otherwise, and unverified "files were copied" claims are rewritten.
+- Evidence refs must exist for this incident. Unknown refs are dropped and the filing record is always cited.
+- With locked files and a deadline within 24 hours, urgency is at least **urgent**.
+
+**Provider:** `NEMOTRON_PROVIDER=nvidia` (NVIDIA API catalog, `NVIDIA_API_KEY`) or `openrouter` (`https://openrouter.ai/api/v1`, model `nvidia/nemotron-3-super-120b-a12b:free`, `OPENROUTER_API_KEY`). Each key is sent only to its own provider. `triage.model` reads like `"openrouter · nvidia/nemotron-3-super-120b-a12b:free"`.
+
+**Handoff to approval + Photon (team integration):** `app/it_triage/draft.py: task_fields(draft)` maps an approved draft to the existing `POST /incidents/{id}/tasks` body. `as_text_card(draft)` gives a plain-text version.

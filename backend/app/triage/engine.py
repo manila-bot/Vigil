@@ -98,7 +98,6 @@ def _stub(conn, incident):
 
 
 def run_triage(conn, incident: dict) -> dict:
-    if config.NEMOTRON_ENABLED:
-        from . import nemotron  # NVIDIA teammate's module
-        return nemotron.run(conn, incident)
+    # Live Nemotron currently powers the IT-help workflow (app/it_triage). Incident-level triage
+    # stays on the labeled mock until the team wires it to the same client at integration.
     return _stub(conn, incident)

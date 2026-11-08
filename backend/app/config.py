@@ -3,6 +3,21 @@ import os
 from pathlib import Path
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
+
+
+def _load_dotenv(path: Path) -> None:
+    """Minimal .env loader (no extra dependency). Real environment variables win."""
+    if not path.is_file():
+        return
+    for line in path.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+
+
+_load_dotenv(BACKEND_DIR / ".env")
 REPO_DIR = BACKEND_DIR.parent
 FIXTURES_DIR = BACKEND_DIR / "fixtures"
 DATA_DIR = Path(os.getenv("VIGIL_DATA_DIR", BACKEND_DIR / "data"))
@@ -22,6 +37,22 @@ CORS_ORIGINS = [o.strip() for o in os.getenv("VIGIL_CORS_ORIGINS", "").split(","
 
 # External providers are OFF unless explicitly enabled. Core features never depend on them.
 NEMOTRON_ENABLED = os.getenv("VIGIL_NEMOTRON_ENABLED", "0") == "1"
+# Nemotron, reached through one of two OpenAI-compatible providers. Keys never leave the server,
+# and each key is only ever sent to its own provider.
+#   nvidia     -> NVIDIA API catalog (NVIDIA_API_KEY)
+#   openrouter -> OpenRouter (OPENROUTER_API_KEY)
+NEMOTRON_PROVIDER = os.getenv("NEMOTRON_PROVIDER", "nvidia").strip().lower()
+NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY", "")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
+_PROVIDER_DEFAULTS = {
+    "nvidia": ("https://integrate.api.nvidia.com/v1", "nvidia/nemotron-3-super-120b-a12b"),
+    "openrouter": ("https://openrouter.ai/api/v1", "nvidia/nemotron-3-super-120b-a12b:free"),
+}
+_base_default, _model_default = _PROVIDER_DEFAULTS.get(NEMOTRON_PROVIDER, _PROVIDER_DEFAULTS["nvidia"])
+NEMOTRON_BASE_URL = (os.getenv("NEMOTRON_BASE_URL") or _base_default).rstrip("/")
+NEMOTRON_MODEL = os.getenv("NEMOTRON_MODEL") or _model_default
+NEMOTRON_TIMEOUT = float(os.getenv("NEMOTRON_TIMEOUT", "60"))
+FIRM_TIMEZONE_LABEL = os.getenv("VIGIL_TZ_LABEL", "CT")
 PHOTON_ENABLED = os.getenv("VIGIL_PHOTON_ENABLED", "0") == "1"
 
 # First-run bootstrap accounts. If passwords are not provided, random ones are generated

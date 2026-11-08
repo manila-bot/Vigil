@@ -150,7 +150,7 @@ export function responseSteps(d: any): Step[] {
       hint: "Click Run AI triage to get a prioritized plan." },
     { key: "approve", title: "Approve", done: t?.status === "approved",
       hint: "Review the AI plan and click Approve plan." },
-    { key: "alert", title: "Alert team", done: sent, hint: "Send a phone alert to the on-call responder." },
+    { key: "alert", title: "Alert team", done: sent, hint: "Send a phone alert to the on-call team member." },
     { key: "recover", title: "Contain & recover", done: ["contained", "recovering", "closed"].includes(status),
       hint: "Work the tasks, post updates in the Response Room, then set status to Contained." },
   ];
