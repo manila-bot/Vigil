@@ -152,6 +152,20 @@ CREATE TABLE IF NOT EXISTS notifications (
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
+
+-- Photon 2.0 webhook event deduplication.
+-- A unique provider event ID prevents the same event
+-- from being processed more than once.
+
+CREATE TABLE IF NOT EXISTS photon_webhook_events (
+    event_id TEXT PRIMARY KEY,
+    event_type TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'processing'
+        CHECK (status IN ('processing', 'processed', 'failed')),
+    received_at TEXT NOT NULL,
+    processed_at TEXT,
+    error TEXT
+);
 CREATE INDEX IF NOT EXISTS ix_timeline_incident ON timeline_events(incident_id, at);
 CREATE INDEX IF NOT EXISTS ix_messages_incident ON messages(incident_id, id);
 """

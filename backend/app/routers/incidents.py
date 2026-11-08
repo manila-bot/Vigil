@@ -9,6 +9,8 @@ from ..schemas import (EvidenceCreate, IncidentCreate, IncidentUpdate, MessageCr
 from ..security import current_user
 from ..services import add_event, get_incident_or_404, incident_detail, local_time_label, next_incident_code
 
+from ..task_claims import claim_task
+
 router = APIRouter(tags=["incidents"])
 
 LABELS = {
@@ -216,3 +218,29 @@ def update_task(incident_id: int, task_id: int, body: TaskUpdate, user=Depends(c
         add_event(conn, incident_id, "task_updated", f"Task '{task['title']}' {what}", user["id"],
                   {"task_id": task_id, **{k: {"from": task[k], "to": v} for k, v in changes.items()}})
     return incident_detail(conn, incident_id)
+
+
+@router.post("/incidents/{incident_id}/tasks/{task_id}/claim")
+def claim_incident_task(
+    incident_id: int,
+    task_id: int,
+    user=Depends(current_user),
+    conn=Depends(get_db),
+):
+    """Allow an authenticated, authorized IT responder to claim a task."""
+
+    get_incident_or_404(conn, incident_id)
+
+    result = claim_task(
+        conn=conn,
+        incident_id=incident_id,
+        task_id=task_id,
+        user=user,
+    )
+
+    return {
+        "success": True,
+        "claim": result,
+        "incident": incident_detail(conn, incident_id),
+    }
+

@@ -1,9 +1,14 @@
 """Runtime settings. Everything sensitive comes from environment variables, never from the repo."""
 import os
 from pathlib import Path
+from dotenv import load_dotenv
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 REPO_DIR = BACKEND_DIR.parent
+
+# Load private local configuration before reading environment variables.
+load_dotenv(BACKEND_DIR / ".env")
+
 FIXTURES_DIR = BACKEND_DIR / "fixtures"
 DATA_DIR = Path(os.getenv("VIGIL_DATA_DIR", BACKEND_DIR / "data"))
 DB_PATH = Path(os.getenv("VIGIL_DB_PATH", DATA_DIR / "vigil.db"))

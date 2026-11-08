@@ -7,7 +7,7 @@ from fastapi.responses import FileResponse, JSONResponse
 
 from . import config
 from .db import init_db, now
-from .routers import auth, demo, incidents, response, users
+from .routers import auth, demo, incidents, response, users, photon_webhook
 from .security import current_user
 
 
@@ -64,6 +64,7 @@ api.include_router(users.router)
 api.include_router(incidents.router)
 api.include_router(response.router)
 api.include_router(demo.router)
+api.include_router(photon_webhook.router)  # NEW
 app.include_router(api)
 
 
